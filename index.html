@@ -669,16 +669,21 @@
           && b >= PARCHMENT.bMin && b <= PARCHMENT.bMax;
     }
 
-    // alt1.getRegion returns Int32Array where each int is 0xAARRGGBB or 0xAABBGGRR
-    // We need to figure out channel order — log a known pixel to check
-    function int32ToRGBA(buf, w, h) {
+    // alt1.getRegion returns Int32Array — byte order confirmed by testing
+    // Try all 4 possible orderings: RGBA, BGRA, ARGB, ABGR
+    function bufToImgData(buf, w, h, order) {
       const out = new Uint8ClampedArray(w * h * 4);
       for (let i = 0; i < w * h; i++) {
-        const px = buf[i] >>> 0; // unsigned
-        // Alt1 returns BGRA packed: B=byte0, G=byte1, R=byte2, A=byte3
-        out[i*4+0] = (px >> 16) & 0xff; // R
-        out[i*4+1] = (px >> 8)  & 0xff; // G
-        out[i*4+2] =  px        & 0xff; // B
+        const px = buf[i] >>> 0;
+        const b0 =  px        & 0xff;
+        const b1 = (px >>  8) & 0xff;
+        const b2 = (px >> 16) & 0xff;
+        const b3 = (px >> 24) & 0xff;
+        // order: which byte is R, G, B
+        if (order === 0) { out[i*4]=b2; out[i*4+1]=b1; out[i*4+2]=b0; } // BGRA (most common)
+        if (order === 1) { out[i*4]=b0; out[i*4+1]=b1; out[i*4+2]=b2; } // RGBA
+        if (order === 2) { out[i*4]=b1; out[i*4+1]=b2; out[i*4+2]=b3; } // ARGB
+        if (order === 3) { out[i*4]=b3; out[i*4+1]=b2; out[i*4+2]=b1; } // ABGR
         out[i*4+3] = 255;
       }
       return { data: out, width: w, height: h };
@@ -715,59 +720,89 @@
       if (typeof alt1 === 'undefined') { simulateScan(); return; }
 
       scanArea.className = 'scan-area scanning';
-      scanText.textContent = 'Step 1: Capturing screen pixels…';
+      scanText.textContent = 'Step 1: Capturing pixels…';
       setStatus('Capturing…');
       scanBtn.disabled = true;
 
-      // setTimeout lets the UI repaint before getRegion blocks the thread
       setTimeout(() => {
         try {
           const sw = alt1.rsWidth, sh = alt1.rsHeight;
-          scanText.textContent = `Step 1: getRegion(0,0,${sw},${sh})…`;
-
           const buf = alt1.getRegion(0, 0, sw, sh);
 
-          if (buf === null || buf === undefined) {
+          if (!buf || buf.length === 0) {
+            diagFail('"View screen" permission not active — right-click app spanner and enable it.');
+            return;
+          }
+
+          // Sample several pixels at known locations to determine byte order
+          // We sample 20 pixels spread across the screen and log their raw values
+          const samples = [];
+          for (let i = 0; i < 20; i++) {
+            const idx = Math.floor((buf.length / 20) * i);
+            samples.push(`[${idx}]=0x${(buf[idx]>>>0).toString(16).padStart(8,'0')}`);
+          }
+          console.log('[StarScout] Pixel samples:', samples.join(' '));
+          console.log('[StarScout] buf.length:', buf.length, 'sw:', sw, 'sh:', sh);
+
+          // Check if ALL pixels are zero (permission issue or wrong capture)
+          let nonZero = 0;
+          for (let i = 0; i < Math.min(buf.length, 10000); i++) {
+            if (buf[i] !== 0) nonZero++;
+          }
+          console.log('[StarScout] Non-zero pixels in first 10k:', nonZero);
+
+          if (nonZero === 0) {
             diagFail(
-              'getRegion() returned null.\n\n' +
-              '"View screen" permission is not active for this app.\n\n' +
-              'Fix: Right-click the Star Scout window spanner (⚙) → ' +
-              'tick "View screen" → reload the app.'
+              'Pixel data is all zeros — screen capture is not working.\n\n' +
+              'In Alt1 Settings → Capture tab:\n' +
+              '• Make sure OpenGL is selected\n' +
+              '• Click the test button — it should say "successfully found home teleport"\n' +
+              '• If it fails, try Desktop capture mode instead\n\n' +
+              'Then reload this app and scan again.'
             );
             return;
           }
 
-          if (buf.length === 0) {
-            diagFail('getRegion() returned empty buffer. RS client may not be focused.');
-            return;
+          scanText.textContent = `Step 2: ${nonZero} non-zero pixels. Trying all byte orders…`;
+
+          // Try all 4 byte orderings and find whichever detects the dialog
+          let bounds = null;
+          let winOrder = -1;
+          for (let order = 0; order < 4; order++) {
+            const img = bufToImgData(buf, sw, sh, order);
+            // Log center pixel for this ordering
+            const ci = (Math.floor(sh/2) * sw + Math.floor(sw/2)) * 4;
+            console.log(`[StarScout] order=${order} center=(${img.data[ci]},${img.data[ci+1]},${img.data[ci+2]})`);
+            const b = findDialogBounds(img);
+            if (b) { bounds = b; winOrder = order; break; }
           }
 
-          const p0 = buf[0] >>> 0;
-          console.log(`[StarScout] buf[0]=0x${p0.toString(16)} len=${buf.length} ${sw}x${sh}`);
-          scanText.textContent = `Step 2: Got ${buf.length} pixels. Finding parchment dialog…`;
-
-          // Try both channel orderings
-          const imgA = int32ToRGBA(buf, sw, sh);
-          const imgB = int32ToRGBA_alt(buf, sw, sh);
-          const boundsA = findDialogBounds(imgA);
-          const boundsB = findDialogBounds(imgB);
-          const bounds = boundsA || boundsB;
-
-          console.log(`[StarScout] boundsA=${JSON.stringify(boundsA)} boundsB=${JSON.stringify(boundsB)}`);
+          console.log(`[StarScout] Winning order: ${winOrder}, bounds: ${JSON.stringify(bounds)}`);
 
           if (!bounds) {
-            const mid = (Math.floor(sh/2) * sw + Math.floor(sw/2)) * 4;
-            const pa = imgA.data;
+            // No parchment found — do a raw color dump of a 50x50 region in the
+            // center of the screen so we can see what colors are actually there
+            const cx = Math.floor(sw/2), cy = Math.floor(sh/2);
+            const img0 = bufToImgData(buf, sw, sh, 0);
+            const colorSamples = [];
+            for (let dy = -2; dy <= 2; dy++) {
+              for (let dx = -2; dx <= 2; dx++) {
+                const pi = ((cy+dy*20)*sw + (cx+dx*20))*4;
+                const d = img0.data;
+                colorSamples.push(`(${d[pi]},${d[pi+1]},${d[pi+2]})`);
+              }
+            }
+            console.log('[StarScout] Color grid (order 0):', colorSamples.join(' '));
             diagFail(
-              `Step 2: Dialog not found.\n\n` +
-              `Center pixel RGB=(${pa[mid]},${pa[mid+1]},${pa[mid+2]})\n\n` +
-              `Make sure the telescope dialog is fully visible, then scan again.\n` +
-              `Share this message if it keeps failing.`
+              `Step 2: No dialog found in ${nonZero} non-zero pixels.\n\n` +
+              `Center color samples (order 0): ${colorSamples.slice(0,6).join(' ')}\n\n` +
+              `Make sure the telescope dialog is open and visible on screen, then scan.\n` +
+              `Share the Dev Console output so we can tune the color range.`
             );
             return;
           }
 
-          scanText.textContent = `Step 3: Dialog at (${bounds.x},${bounds.y}) ${bounds.w}×${bounds.h}. Reading text…`;
+          scanText.textContent = `Step 3: Dialog found (order ${winOrder}) at (${bounds.x},${bounds.y}) ${bounds.w}×${bounds.h}. Reading text…`;
           doOCR(bounds);
 
         } catch(err) {
@@ -775,19 +810,6 @@
           diagFail(`Scan error: ${err.message || String(err)}`);
         }
       }, 50);
-    }
-
-    // Alternate channel order: ARGB (A=byte3, R=byte2, G=byte1, B=byte0)
-    function int32ToRGBA_alt(buf, w, h) {
-      const out = new Uint8ClampedArray(w * h * 4);
-      for (let i = 0; i < w * h; i++) {
-        const px = buf[i] >>> 0;
-        out[i*4+0] =  px        & 0xff; // R (low byte)
-        out[i*4+1] = (px >> 8)  & 0xff; // G
-        out[i*4+2] = (px >> 16) & 0xff; // B
-        out[i*4+3] = 255;
-      }
-      return { data: out, width: w, height: h };
     }
 
     // ── STEP 2: Use bindReadString to OCR the dialog region ──
