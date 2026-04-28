@@ -1,0 +1,16 @@
+{
+  "appName": "Star Scout",
+  "description": "Reads shooting star telescope dialogs and formats /call reports for Discord.",
+  "appUrl": "./index.html",
+  "configUrl": "./appconfig.json",
+  "iconUrl": "./assets/icon.svg",
+  "defaultWidth": 340,
+  "defaultHeight": 480,
+  "minWidth": 300,
+  "minHeight": 420,
+  "maxWidth": 500,
+  "maxHeight": 600,
+  "requestHandlers": [],
+  "activators": [],
+  "permissions": "pixel,gamestate,overlay"
+}

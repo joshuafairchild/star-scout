@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Star Scout</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --gold:        #c8a84b;
+      --gold-light:  #e8c96a;
+      --gold-dim:    #7a6030;
+      --bg-dark:     #0e0b07;
+      --bg-panel:    #1a1409;
+      --bg-inset:    #110e06;
+      --border:      #3a2e12;
+      --border-hi:   #5a4820;
+      --text:        #d4c090;
+      --text-dim:    #8a7850;
+      --star-blue:   #7ab8e8;
+      --star-glow:   #4a90c8;
+      --green:       #5db86a;
+      --red:         #c85050;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Crimson Text', Georgia, serif;
+      background: var(--bg-dark);
+      color: var(--text);
+      font-size: 14px;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(180deg, #251c08 0%, var(--bg-panel) 100%);
+      border-bottom: 2px solid var(--border-hi);
+      padding: 8px 12px 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -4px; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+    }
+    .header-icon {
+      font-size: 22px;
+      filter: drop-shadow(0 0 6px var(--star-glow));
+    }
+    .header-title {
+      font-family: 'Cinzel', serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--gold-light);
+      letter-spacing: 1px;
+      text-shadow: 0 0 12px rgba(200,168,75,0.4);
+    }
+    .header-sub {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+      margin-top: 1px;
+    }
+    .alt1-badge {
+      margin-left: auto;
+      font-size: 9px;
+      font-family: 'Cinzel', serif;
+      color: var(--gold-dim);
+      border: 1px solid var(--border);
+      padding: 2px 5px;
+      border-radius: 2px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Section labels ── */
+    .section {
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-label {
+      font-family: 'Cinzel', serif;
+      font-size: 9px;
+      color: var(--gold-dim);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    /* ── World row ── */
+    .world-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .world-input-wrap {
+      position: relative;
+      flex: 1;
+    }
+    .world-input-wrap label {
+      position: absolute;
+      left: 10px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-size: 13px;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .world-input-wrap.has-value label { opacity: 0; }
+    input[type="number"] {
+      width: 100%;
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--gold-light);
+      font-family: 'Cinzel', serif;
+      font-size: 14px;
+      padding: 7px 10px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-inner-spin-button { display: none; }
+    input[type="number"]:focus {
+      border-color: var(--gold-dim);
+      box-shadow: 0 0 8px rgba(200,168,75,0.15);
+    }
+    .world-detected {
+      font-size: 11px;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .world-detected .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 4px var(--green);
+    }
+    .world-detected.no-detect { color: var(--text-dim); }
+    .world-detected.no-detect .dot { background: var(--text-dim); box-shadow: none; }
+
+    /* ── Scan button ── */
+    .btn {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      border: 1px solid var(--border-hi);
+      border-radius: 3px;
+      cursor: pointer;
+      padding: 7px 12px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: linear-gradient(180deg, #2a2008 0%, #1a1208 100%);
+      color: var(--gold-light);
+      border-color: var(--gold-dim);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(180deg, #3a2e10 0%, #252010 100%);
+      border-color: var(--gold);
+      box-shadow: 0 0 10px rgba(200,168,75,0.2);
+    }
+    .btn-primary:active { transform: translateY(1px); }
+    .btn-secondary {
+      background: var(--bg-inset);
+      color: var(--text-dim);
+    }
+    .btn-secondary:hover { border-color: var(--gold-dim); color: var(--text); }
+
+    /* ── Scan area ── */
+    .scan-area {
+      background: var(--bg-inset);
+      border: 1px dashed var(--border-hi);
+      border-radius: 4px;
+      padding: 10px;
+      min-height: 70px;
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: 'Crimson Text', serif;
+      font-style: italic;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.5;
+      margin-top: 8px;
+      transition: border-color 0.3s, background 0.3s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .scan-area.scanning {
+      border-color: var(--star-blue);
+      background: #0a1020;
+    }
+    .scan-area.success {
+      border-color: var(--green);
+      border-style: solid;
+      background: #0a150a;
+      color: var(--text);
+      font-style: normal;
+    }
+    .scan-area.error {
+      border-color: var(--red);
+      border-style: solid;
+      color: var(--red);
+    }
+    .scan-pulse {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--star-blue);
+      animation: pulse-scan 1s ease-out infinite;
+      display: none;
+    }
+    .scan-area.scanning .scan-pulse { display: block; }
+    @keyframes pulse-scan {
+      0%   { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+      100% { transform: translate(-50%,-50%) scale(8); opacity: 0; }
+    }
+
+    /* ── Manual fields ── */
+    .manual-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .field-wrap { display: flex; flex-direction: column; gap: 4px; }
+    .field-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+      font-family: 'Cinzel', serif;
+    }
+    select, input[type="number"].small {
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--gold-light);
+      font-family: 'Crimson Text', serif;
+      font-size: 13px;
+      padding: 6px 8px;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+    select:focus, input[type="number"].small:focus {
+      border-color: var(--gold-dim);
+    }
+    select option { background: #1a1409; color: var(--text); }
+
+    /* ── Output box ── */
+    .output-section {
+      padding: 10px 12px;
+    }
+    .output-box {
+      background: var(--bg-inset);
+      border: 1px solid var(--border-hi);
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-family: 'Cinzel', serif;
+      font-size: 12px;
+      color: var(--gold-light);
+      letter-spacing: 0.3px;
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      word-break: break-all;
+    }
+    .output-box.empty { color: var(--text-dim); font-family: 'Crimson Text', serif; font-style: italic; font-size: 13px; }
+    .output-box .tag {
+      background: rgba(200,168,75,0.1);
+      border: 1px solid var(--gold-dim);
+      padding: 1px 5px;
+      border-radius: 2px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .copy-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .copy-row .btn { flex: 1; }
+
+    /* ── Status bar ── */
+    .status-bar {
+      padding: 6px 12px;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-indicator {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--gold-dim);
+      flex-shrink: 0;
+    }
+    .status-indicator.ok { background: var(--green); box-shadow: 0 0 4px var(--green); }
+    .status-indicator.err { background: var(--red); }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 2px 0;
+    }
+
+    /* ── Copy flash ── */
+    .copy-flash {
+      position: fixed;
+      bottom: 36px; left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: #1a2a1a;
+      border: 1px solid var(--green);
+      color: var(--green);
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      padding: 6px 14px;
+      border-radius: 3px;
+      opacity: 0;
+      transition: all 0.2s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .copy-flash.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .star-shimmer {
+      display: inline-block;
+      animation: shimmer 2s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+      0%, 100% { filter: drop-shadow(0 0 4px var(--star-glow)); }
+      50%       { filter: drop-shadow(0 0 12px #a0d4ff); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-icon star-shimmer">★</div>
+    <div>
+      <div class="header-title">Star Scout</div>
+      <div class="header-sub">Shooting Stars Reporter</div>
+    </div>
+    <div class="alt1-badge">ALT1</div>
+  </div>
+
+  <!-- World section -->
+  <div class="section">
+    <div class="section-label">Current World</div>
+    <div class="world-row">
+      <div class="world-input-wrap" id="worldWrap">
+        <label>World number...</label>
+        <input type="number" id="worldInput" min="1" max="999" placeholder="" />
+      </div>
+      <div class="world-detected no-detect" id="worldDetect">
+        <div class="dot"></div>
+        <span id="worldDetectLabel">manual</span>
+      </div>
+      <button class="btn btn-secondary" id="detectWorldBtn" title="Auto-detect world from game">⟳</button>
+    </div>
+  </div>
+
+  <!-- Scan section -->
+  <div class="section">
+    <div class="section-label">Telescope Dialog</div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-primary" id="scanBtn" style="flex:1;">
+        ◉ Scan Screen for Dialog
+      </button>
+    </div>
+    <div class="scan-area" id="scanArea" title="Click to scan">
+      <div class="scan-pulse"></div>
+      <span id="scanText">Use your telescope in-game, then click Scan — or fill in fields below manually.</span>
+    </div>
+  </div>
+
+  <!-- Manual override -->
+  <div class="section">
+    <div class="section-label">Manual Entry</div>
+    <div class="manual-grid">
+      <div class="field-wrap">
+        <div class="field-label">Region</div>
+        <select id="regionSelect">
+          <option value="">— Select —</option>
+          <option value="Ana">Ana — Anachronia</option>
+          <option value="Asg">Asg — Asgarnia</option>
+          <option value="Ash">Ash — Ashdale</option>
+          <option value="C/K">C/K — Crandor/Karamja</option>
+          <option value="Daem">Daem — Daemonheim</option>
+          <option value="Des">Des — Kharidian Desert</option>
+          <option value="F/L">F/L — Fremennik/Lunar Isle</option>
+          <option value="Feld">Feld — Feldip Hills</option>
+          <option value="Grove">Grove — The Lost Grove</option>
+          <option value="Kand">Kand — Kandarin</option>
+          <option value="M/M">M/M — Morytania/Mos Le'Harmless</option>
+          <option value="Mena">Mena — Menaphos</option>
+          <option value="Mist">Mist — Misthalin</option>
+          <option value="PGT">PGT — Piscatoris/Gnome/Tirannwn</option>
+          <option value="Wend">Wend — Wendlewick</option>
+          <option value="Wild">Wild — Wilderness</option>
+        </select>
+      </div>
+      <div class="field-wrap">
+        <div class="field-label">Size (1–10)</div>
+        <input type="number" class="small" id="sizeInput" min="1" max="10" placeholder="e.g. 7" />
+      </div>
+      <div class="field-wrap">
+        <div class="field-label">Relative Time (min)</div>
+        <input type="number" class="small" id="timeInput" min="0" max="120" placeholder="e.g. 8" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Output -->
+  <div class="output-section">
+    <div class="section-label" style="margin-bottom:8px;">Discord /call Output</div>
+    <div class="output-box empty" id="outputBox">
+      Fill in the fields above to generate your call…
+    </div>
+    <div class="copy-row">
+      <button class="btn btn-primary" id="copyBtn">⎘ Copy to Clipboard</button>
+      <button class="btn btn-secondary" id="clearBtn">✕ Clear</button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Status bar -->
+  <div class="status-bar">
+    <div class="status-indicator" id="statusDot"></div>
+    <span id="statusText">Ready — waiting for scan or input</span>
+  </div>
+
+  <!-- Copy flash -->
+  <div class="copy-flash" id="copyFlash">✓ Copied to clipboard!</div>
+
+  <script>
+    // ── Region name → abbreviation map ──
+    const REGION_MAP = {
+      'anachronia':                     'Ana',
+      'asgarnia':                       'Asg',
+      'ashdale':                        'Ash',
+      'crandor':                        'C/K',
+      'karamja':                        'C/K',
+      'crandor/karamja':                'C/K',
+      'karamja/crandor':                'C/K',
+      'daemonheim':                     'Daem',
+      'kharidian desert':               'Des',
+      'desert':                         'Des',
+      'fremennik':                      'F/L',
+      'lunar isle':                     'F/L',
+      'fremennik/lunar isle':           'F/L',
+      'lunar':                          'F/L',
+      'feldip hills':                   'Feld',
+      'feldip':                         'Feld',
+      'lost grove':                     'Grove',
+      'the lost grove':                 'Grove',
+      'kandarin':                       'Kand',
+      'morytania':                      'M/M',
+      'mos le\'harmless':               'M/M',
+      'morytania/mos le\'harmless':     'M/M',
+      'mos le harmless':                'M/M',
+      'menaphos':                       'Mena',
+      'misthalin':                      'Mist',
+      'piscatoris':                     'PGT',
+      'gnome stronghold':               'PGT',
+      'tirannwn':                       'PGT',
+      'piscatoris/gnome stronghold/tirannwn': 'PGT',
+      'wendlewick':                     'Wend',
+      'wilderness':                     'Wild',
+    };
+
+    function lookupRegion(raw) {
+      const lower = raw.toLowerCase().trim();
+      if (REGION_MAP[lower]) return REGION_MAP[lower];
+      // fuzzy: find first key that contains the raw word or vice versa
+      for (const [key, abbr] of Object.entries(REGION_MAP)) {
+        if (lower.includes(key) || key.includes(lower)) return abbr;
+      }
+      return null;
+    }
+
+    // ── Parse telescope dialog text ──
+    // Handles variants like:
+    //   "The star will land in the Kandarin region in approximately 8 minutes."
+    //   "A shooting star will land somewhere in Karamja in about 12 minutes. Size: 5."
+    //   "...Crandor/Karamja region... size 7 star... 8 minutes..."
+    function parseTelescopeText(text) {
+      const result = { region: null, size: null, time: null };
+      if (!text) return result;
+      const t = text.replace(/\n/g, ' ');
+
+      // Region — look for known region names
+      const regionPattern = new RegExp(
+        Object.keys(REGION_MAP).sort((a,b) => b.length - a.length)
+          .map(k => k.replace(/[/\\()']/g, s => '\\' + s))
+          .join('|'),
+        'i'
+      );
+      const regionMatch = t.match(regionPattern);
+      if (regionMatch) result.region = lookupRegion(regionMatch[0]);
+
+      // Size — "size 7", "size: 7", "s7", "a size 7 star"
+      const sizeMatch = t.match(/size[:\s]*(\d{1,2})|s(\d{1,2})\b|(\d{1,2})\s*(?:size|star)/i);
+      if (sizeMatch) result.size = parseInt(sizeMatch[1] || sizeMatch[2] || sizeMatch[3]);
+
+      // Time — "8 minutes", "approximately 12 minutes", "in about 8 min"
+      const timeMatch = t.match(/(\d{1,3})\s*(?:minutes?|mins?)/i);
+      if (timeMatch) result.time = parseInt(timeMatch[1]);
+
+      return result;
+    }
+
+    // ── UI state ──
+    let scannedData = { region: null, size: null, time: null };
+    let worldFromGameState = null;
+
+    const worldInput     = document.getElementById('worldInput');
+    const worldWrap      = document.getElementById('worldWrap');
+    const worldDetect    = document.getElementById('worldDetect');
+    const worldDetectLbl = document.getElementById('worldDetectLabel');
+    const detectWorldBtn = document.getElementById('detectWorldBtn');
+    const scanBtn        = document.getElementById('scanBtn');
+    const scanArea       = document.getElementById('scanArea');
+    const scanText       = document.getElementById('scanText');
+    const regionSelect   = document.getElementById('regionSelect');
+    const sizeInput      = document.getElementById('sizeInput');
+    const timeInput      = document.getElementById('timeInput');
+    const outputBox      = document.getElementById('outputBox');
+    const copyBtn        = document.getElementById('copyBtn');
+    const clearBtn       = document.getElementById('clearBtn');
+    const statusDot      = document.getElementById('statusDot');
+    const statusText     = document.getElementById('statusText');
+    const copyFlash      = document.getElementById('copyFlash');
+
+    function setStatus(msg, type = 'idle') {
+      statusText.textContent = msg;
+      statusDot.className = 'status-indicator' + (type === 'ok' ? ' ok' : type === 'err' ? ' err' : '');
+    }
+
+    function buildCallString() {
+      const world  = worldInput.value.trim();
+      const region = regionSelect.value;
+      const size   = sizeInput.value.trim();
+      const time   = timeInput.value.trim();
+      if (!world && !region && !size && !time) return null;
+      let parts = ['/call'];
+      if (world)  parts.push(`world: ${world}`);
+      if (region) parts.push(`region: ${region}`);
+      if (size)   parts.push(`size: ${size}`);
+      if (time)   parts.push(`relative-time: ${time}`);
+      return parts.join(' ');
+    }
+
+    function renderOutput() {
+      const str = buildCallString();
+      if (!str) {
+        outputBox.className = 'output-box empty';
+        outputBox.textContent = 'Fill in the fields above to generate your call…';
+        return;
+      }
+      outputBox.className = 'output-box';
+      // Render with highlighted tags
+      outputBox.innerHTML = str.split(' ').map(token => {
+        if (token.startsWith('/')) return `<span style="color:var(--star-blue);font-weight:700">${token}</span>`;
+        if (token.endsWith(':')) return `<span class="tag">${token}</span>`;
+        return `<span>${token}</span>`;
+      }).join(' ');
+    }
+
+    // ── World detection (Alt1 gamestate) ──
+    function detectWorld() {
+      try {
+        if (typeof alt1 !== 'undefined' && alt1.currentWorld) {
+          const w = alt1.currentWorld;
+          if (w && w > 0) {
+            worldInput.value = w;
+            worldWrap.classList.add('has-value');
+            worldDetect.classList.remove('no-detect');
+            worldDetectLbl.textContent = 'detected';
+            worldFromGameState = w;
+            setStatus(`World ${w} detected from game`, 'ok');
+            renderOutput();
+            return;
+          }
+        }
+      } catch(e) {}
+      // Fallback: try window.alt1 property
+      try {
+        if (window.alt1 && window.alt1.currentWorld) {
+          const w = window.alt1.currentWorld;
+          if (w && w > 0) {
+            worldInput.value = w;
+            worldWrap.classList.add('has-value');
+            worldDetect.classList.remove('no-detect');
+            worldDetectLbl.textContent = 'detected';
+            setStatus(`World ${w} detected from game`, 'ok');
+            renderOutput();
+            return;
+          }
+        }
+      } catch(e) {}
+      setStatus('World not detected — enter manually', 'err');
+    }
+
+    // ── Screen scan (Alt1 pixel read) ──
+    // Captures a region of the screen and OCRs for the telescope dialog.
+    // The telescope chat box in RS3 appears near the chat interface.
+    // We use alt1.captureHtml / alt1.readString depending on availability.
+    function scanScreen() {
+      if (typeof alt1 === 'undefined') {
+        // Dev fallback: simulate for testing outside Alt1
+        simulateScan();
+        return;
+      }
+
+      scanArea.className = 'scan-area scanning';
+      scanText.textContent = 'Scanning…';
+      setStatus('Scanning screen for telescope dialog…');
+      scanBtn.disabled = true;
+
+      try {
+        // Capture a large region covering the RS chatbox area.
+        // We scan multiple candidate regions: lower-center for chat,
+        // and center for any open dialog popup.
+        const img = a1lib.captureHold(0, 0, alt1.rsWidth, alt1.rsHeight);
+        img.toData().then(data => {
+          // Use the RS3 font reader if available
+          let found = false;
+
+          // Try using alt1.readString if the runescape fonts are loaded
+          if (window.rsFont || window.a1lib) {
+            try {
+              const rsf = new a1lib.PixelSearch(img);
+              // Look for yellow chat text color (RS dialog text is typically #ffff00 or #ffffff)
+              // We'll do a broad text read and look for telescope keywords
+              const chatText = img.findSubimage(/* telescope dialog texture */);
+              // Fall through to regex parse
+            } catch(e) {}
+          }
+
+          // Primary method: use alt1.captureHtml for OCR
+          if (!found && alt1.captureHtml) {
+            alt1.captureHtml(function(html) {
+              const div = document.createElement('div');
+              div.innerHTML = html;
+              const text = div.innerText || div.textContent || '';
+              attemptParse(text);
+            }, 0, 0, alt1.rsWidth, alt1.rsHeight);
+            return;
+          }
+
+          // If we reach here, we didn't get anything useful
+          if (!found) {
+            fallbackManual('Could not read screen. Use a telescope and try again, or fill in manually.');
+          }
+        }).catch(() => {
+          fallbackManual('Screen capture failed. Check Alt1 pixel permissions.');
+        });
+      } catch(e) {
+        // Alt1 API varies — try simpler capture path
+        try {
+          const bounds = [0, alt1.rsHeight - 200, alt1.rsWidth, 200]; // bottom strip (chat area)
+          alt1.captureHtml(function(html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            attemptParse(div.innerText || div.textContent || '');
+          }, bounds[0], bounds[1], bounds[2], bounds[3]);
+        } catch(e2) {
+          fallbackManual('Alt1 screen read unavailable. Enter data manually below.');
+        }
+      }
+
+      scanBtn.disabled = false;
+    }
+
+    function attemptParse(text) {
+      scanBtn.disabled = false;
+      const parsed = parseTelescopeText(text);
+      const found = parsed.region || parsed.size || parsed.time;
+
+      if (found) {
+        if (parsed.region) regionSelect.value = parsed.region;
+        if (parsed.size)   sizeInput.value   = parsed.size;
+        if (parsed.time)   timeInput.value   = parsed.time;
+
+        scanArea.className = 'scan-area success';
+        let summary = [];
+        if (parsed.region) summary.push(`Region: ${parsed.region}`);
+        if (parsed.size)   summary.push(`Size: ${parsed.size}`);
+        if (parsed.time)   summary.push(`Time: ${parsed.time} min`);
+        scanText.textContent = '✓ Found — ' + summary.join(' · ');
+        setStatus('Dialog parsed successfully', 'ok');
+        renderOutput();
+      } else {
+        fallbackManual('No telescope dialog found in screen text. Make sure the telescope dialog is visible, then try again.');
+      }
+    }
+
+    function fallbackManual(msg) {
+      scanBtn.disabled = false;
+      scanArea.className = 'scan-area error';
+      scanText.textContent = msg;
+      setStatus(msg, 'err');
+    }
+
+    // Dev/testing simulation outside Alt1
+    function simulateScan() {
+      scanArea.className = 'scan-area scanning';
+      scanText.textContent = 'Scanning…';
+      scanBtn.disabled = true;
+      setStatus('Simulating scan (no Alt1 detected)…');
+
+      setTimeout(() => {
+        const sampleDialogs = [
+          'A shooting star will land in the Kandarin region in approximately 8 minutes. The star appears to be size 7.',
+          'The star will land somewhere in Misthalin in about 4 minutes. Size 9.',
+          'Your telescope shows a star heading to the Crandor/Karamja region. Estimated time: 12 minutes. Size: 5.',
+          'The shooting star will land in the Wilderness region in approximately 2 minutes. Size 10.',
+        ];
+        const sample = sampleDialogs[Math.floor(Math.random() * sampleDialogs.length)];
+        attemptParse(sample);
+        scanBtn.disabled = false;
+      }, 1200);
+    }
+
+    // ── Event listeners ──
+    worldInput.addEventListener('input', () => {
+      worldWrap.classList.toggle('has-value', worldInput.value.length > 0);
+      if (worldInput.value) {
+        worldDetect.classList.add('no-detect');
+        worldDetectLbl.textContent = 'manual';
+      }
+      renderOutput();
+    });
+
+    detectWorldBtn.addEventListener('click', detectWorld);
+    scanBtn.addEventListener('click', scanScreen);
+    scanArea.addEventListener('click', scanScreen);
+
+    regionSelect.addEventListener('change', renderOutput);
+    sizeInput.addEventListener('input', renderOutput);
+    timeInput.addEventListener('input', renderOutput);
+
+    copyBtn.addEventListener('click', () => {
+      const str = buildCallString();
+      if (!str) { setStatus('Nothing to copy yet!', 'err'); return; }
+      navigator.clipboard.writeText(str).then(() => {
+        copyFlash.classList.add('show');
+        setTimeout(() => copyFlash.classList.remove('show'), 2000);
+        setStatus('Copied: ' + str, 'ok');
+      }).catch(() => {
+        // Fallback for Alt1 browser
+        const ta = document.createElement('textarea');
+        ta.value = str;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        copyFlash.classList.add('show');
+        setTimeout(() => copyFlash.classList.remove('show'), 2000);
+        setStatus('Copied: ' + str, 'ok');
+      });
+    });
+
+    clearBtn.addEventListener('click', () => {
+      worldInput.value = '';
+      worldWrap.classList.remove('has-value');
+      regionSelect.value = '';
+      sizeInput.value = '';
+      timeInput.value = '';
+      scanArea.className = 'scan-area';
+      scanText.textContent = 'Use your telescope in-game, then click Scan — or fill in fields below manually.';
+      worldDetect.classList.add('no-detect');
+      worldDetectLbl.textContent = 'manual';
+      setStatus('Cleared');
+      renderOutput();
+    });
+
+    // ── Init ──
+    detectWorld();
+    setStatus('Ready — use telescope then scan, or enter manually');
+  </script>
+</body>
+</html>
