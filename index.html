@@ -726,55 +726,49 @@
       if (typeof alt1 === 'undefined') { simulateScan(); return; }
 
       scanArea.className = 'scan-area scanning';
-      scanText.textContent = 'Capturing screen…';
-      setStatus('Capturing…');
+      scanText.textContent = 'Probing Alt1 API…';
+      setStatus('Diagnosing…');
       scanBtn.disabled = true;
 
-      // Log what we know about the alt1 object for debugging
-      const w = alt1.rsWidth, h = alt1.rsHeight;
-      console.log('[StarScout] alt1 object keys:', Object.keys(alt1).join(', '));
-      console.log(`[StarScout] RS dimensions: ${w}x${h}`);
-      console.log('[StarScout] alt1.capture type:', typeof alt1.capture);
-
-      try {
-        // THE correct API: alt1.capture(x, y, w, h) → Int32Array | null
-        const buf = alt1.capture(0, 0, w, h);
-
-        if (!buf) {
-          diagFail('alt1.capture() returned null — "View screen" permission may not be active for this domain. Right-click the app window → check "View screen" is ticked.');
-          return;
-        }
-
-        console.log(`[StarScout] Captured ${buf.length} pixels (${w}x${h}=${w*h})`);
-
-        const imgData = int32ToImageData(buf, w, h);
-        const bounds = findDialogBounds(imgData);
-
-        if (!bounds) {
-          // Widen color range and retry before giving up
-          PARCHMENT.rMin = 160; PARCHMENT.gMin = 148; PARCHMENT.bMin = 108;
-          const bounds2 = findDialogBounds(imgData);
-          if (!bounds2) {
-            diagFail(
-              `No parchment dialog detected in ${buf.length} pixels captured.\n` +
-              'Make sure the telescope dialog is fully on screen, then scan again.\n' +
-              'If this keeps failing, use the manual fields below.'
-            );
-            return;
-          }
-          readDialogText(imgData, bounds2);
-          return;
-        }
-
-        readDialogText(imgData, bounds);
-
-      } catch(err) {
-        console.error('[StarScout] capture error:', err);
-        diagFail(
-          `Capture error: ${err.message || err}\n\n` +
-          'Check the Alt1 dev console (right-click app spanner → Developer Tools) for details.'
-        );
+      // Dump every property on window.alt1 so we know the real API
+      const props = [];
+      for (const key in alt1) {
+        try { props.push(`${key}: ${typeof alt1[key]}`); } catch(e) {}
       }
+      // Also try Object.getOwnPropertyNames
+      let ownProps = [];
+      try { ownProps = Object.getOwnPropertyNames(alt1); } catch(e) {}
+
+      console.log('[StarScout] alt1 for..in props:\n' + props.join('\n'));
+      console.log('[StarScout] alt1 own props:', ownProps.join(', '));
+      console.log('[StarScout] alt1.rsWidth:', alt1.rsWidth);
+      console.log('[StarScout] alt1.rsHeight:', alt1.rsHeight);
+      console.log('[StarScout] alt1.currentWorld:', alt1.currentWorld);
+
+      // Test every plausible capture function name
+      const candidates = [
+        'capture','captureRect','captureArea','captureScreen',
+        'captureHold','captureImage','getImage','getPixels',
+        'readScreen','readPixels','screenshot','getScreenshot',
+        'captureHtml','readHtml','getHtml',
+        'bind','captureMulti'
+      ];
+      const found = candidates.filter(n => typeof alt1[n] === 'function');
+      console.log('[StarScout] Capture function candidates found:', found.join(', ') || 'NONE');
+
+      // Also log ALL function-type properties
+      const fns = props.filter(p => p.includes(': function')).map(p => p.split(':')[0]);
+      console.log('[StarScout] All alt1 functions:', fns.join(', ') || 'NONE');
+
+      scanBtn.disabled = false;
+      scanArea.className = 'scan-area error';
+      scanText.innerHTML =
+        `<strong>API Diagnostic — check Dev Console (F12)</strong><br><br>` +
+        `rsWidth: ${alt1.rsWidth} | rsHeight: ${alt1.rsHeight}<br>` +
+        `Capture fns found: <strong>${found.join(', ') || 'none of the expected names'}</strong><br><br>` +
+        `All props: ${props.slice(0,30).join(', ')}<br><br>` +
+        `<em>Copy the console output and share it so we can find the right API call.</em>`;
+      setStatus('Diagnostic complete — check output above', 'err');
     }
 
     function readDialogText(imgData, bounds) {
