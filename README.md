@@ -33,7 +33,7 @@ A [RuneApps Alt1 Toolkit](https://runeapps.org/alt1) app for RuneScape 3 that re
 Once deployed, paste this URL into your browser address bar:
 
 ```
-alt1://addapp/https://joshufairchild.github.io/star-scout/appconfig.json
+alt1://addapp/https://joshuafairchild.github.io/star-scout/appconfig.json
 ```
 
 Or navigate to your GitHub Pages URL in the Alt1 built-in browser and click **Add App**.
