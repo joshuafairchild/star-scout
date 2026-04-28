@@ -640,22 +640,24 @@
       setStatus('World not detected — enter manually', 'err');
     }
 
-    // ── Screen scan — Alt1 pixel color search ──
+    // ── Screen scan ──
     //
-    // Strategy: The RS3 telescope dialog has a distinctive parchment/tan background.
-    // From the screenshot: approximately RGB(210, 190, 150) — a warm beige.
-    // We scan the full screen for a large horizontal band of that color,
-    // crop that region, then use Alt1's built-in OCR (readString / captureHtml)
-    // on just that crop.
+    // TWO PATHS based on what Alt1 can do:
     //
-    // Parchment color range (sampled from screenshot):
-    //   R: 185–230, G: 170–210, B: 130–175
+    // PATH A — OpenGL capture mode (preferred):
+    //   a1lib.captureHold() works → pixel color search for parchment dialog
+    //   → targeted captureHtml on just that region
     //
-    // The dialog box is typically ~400px wide and ~100px tall.
+    // PATH B — DirectX capture mode:
+    //   a1lib.captureHold() will throw/fail
+    //   → fall back to captureHtml on full screen (slower, less precise but works)
+    //   → if that also fails, the dialog is a game-rendered popup that captureHtml
+    //     cannot see at all in DirectX mode — user must enter manually or switch to OpenGL
+    //
+    // The telescope dialog text is game-rendered (not chatbox), so DirectX mode
+    // fundamentally cannot pixel-read it via Alt1's public API.
 
     const PARCHMENT = { rMin:185, rMax:230, gMin:168, gMax:212, bMin:128, bMax:178 };
-    const MIN_DIALOG_W = 250;   // minimum width in pixels to consider a match
-    const MIN_DIALOG_H = 40;    // minimum height
 
     function isParchment(r, g, b) {
       return r >= PARCHMENT.rMin && r <= PARCHMENT.rMax
@@ -663,12 +665,8 @@
           && b >= PARCHMENT.bMin && b <= PARCHMENT.bMax;
     }
 
-    // Find the bounding box of the parchment dialog in RGBA pixel data
     function findDialogBounds(data, width, height) {
-      let minX = width, maxX = 0, minY = height, maxY = 0;
-      let hits = 0;
-
-      // Sample every 4th pixel for speed (dialog is large enough)
+      let minX = width, maxX = 0, minY = height, maxY = 0, hits = 0;
       for (let y = 0; y < height; y += 4) {
         for (let x = 0; x < width; x += 4) {
           const i = (y * width + x) * 4;
@@ -681,83 +679,79 @@
           }
         }
       }
-
-      const w = maxX - minX;
-      const h = maxY - minY;
-      if (hits < 100 || w < MIN_DIALOG_W || h < MIN_DIALOG_H) return null;
-
-      // Add small padding
-      return {
-        x: Math.max(0, minX - 8),
-        y: Math.max(0, minY - 8),
-        w: Math.min(width,  w + 16),
-        h: Math.min(height, h + 16)
-      };
+      const w = maxX - minX, h = maxY - minY;
+      if (hits < 80 || w < 200 || h < 30) return null;
+      return { x: Math.max(0,minX-8), y: Math.max(0,minY-8),
+               w: Math.min(width,w+16), h: Math.min(height,h+16) };
     }
 
     function scanScreen() {
-      if (typeof alt1 === 'undefined') {
-        simulateScan();
-        return;
-      }
+      if (typeof alt1 === 'undefined') { simulateScan(); return; }
 
       scanArea.className = 'scan-area scanning';
       scanText.textContent = 'Scanning for dialog…';
       setStatus('Scanning screen…');
       scanBtn.disabled = true;
 
+      // ── PATH A: try pixel capture (OpenGL mode) ──
       try {
-        // Capture full RS client as raw pixels
         const img = a1lib.captureHold(0, 0, alt1.rsWidth, alt1.rsHeight);
-
         img.toData().then(imageData => {
           const bounds = findDialogBounds(imageData.data, alt1.rsWidth, alt1.rsHeight);
-
           if (!bounds) {
-            // Parchment not found — dialog may not be open
-            fallbackManual(
-              'Parchment dialog not detected.\n' +
-              'Make sure the telescope dialog is open and fully visible, then scan again.'
-            );
+            showDirectXWarning('Pixel scan found no dialog. Make sure the telescope dialog is fully visible and try again.');
             return;
           }
-
-          // Got a bounds — now OCR that crop using captureHtml
-          // captureHtml(callback, x, y, w, h) — reads RS font text from that screen region
+          // Found dialog bounds — OCR just that region
           alt1.captureHtml(function(html) {
-            const div = document.createElement('div');
-            div.innerHTML = html;
-            const text = (div.innerText || div.textContent || '').trim();
-
-            if (!text) {
-              // captureHtml returned nothing — try reading raw text from the image
-              // using the full-screen capture and manual regex on any visible text
-              fallbackManual(
-                'Dialog found on screen but text could not be read.\n' +
-                'Try granting Alt1 the "View screen" permission, or enter manually.'
-              );
-              return;
-            }
-
-            attemptParse(text, bounds);
+            const text = htmlToText(html);
+            if (text) { attemptParse(text, bounds); }
+            else { showDirectXWarning('Dialog located but text unreadable. Check Alt1 screen permission.'); }
           }, bounds.x, bounds.y, bounds.w, bounds.h);
-
-        }).catch(err => {
-          fallbackManual('Screen capture failed. Check Alt1 pixel permission is enabled.');
+        }).catch(() => {
+          tryDirectXFallback();
         });
-
       } catch(e) {
-        // a1lib not available or capture failed — try legacy captureHtml full screen
-        try {
-          alt1.captureHtml(function(html) {
-            const div = document.createElement('div');
-            div.innerHTML = html;
-            attemptParse((div.innerText || div.textContent || '').trim(), null);
-          }, 0, 0, alt1.rsWidth, alt1.rsHeight);
-        } catch(e2) {
-          fallbackManual('Could not access screen. Make sure "View screen" permission is enabled in Alt1.');
-        }
+        // PATH B: OpenGL not available (DirectX mode)
+        tryDirectXFallback();
       }
+    }
+
+    // PATH B — captureHtml full screen (DirectX)
+    // This reads Alt1's own text overlay, NOT game-rendered dialog popups.
+    // It will work if the dialog text somehow appears in Alt1's overlay layer,
+    // but usually won't for the telescope popup.
+    function tryDirectXFallback() {
+      try {
+        alt1.captureHtml(function(html) {
+          const text = htmlToText(html);
+          if (text && /shooting star|star looks/i.test(text)) {
+            attemptParse(text, null);
+          } else {
+            showDirectXWarning();
+          }
+        }, 0, 0, alt1.rsWidth, alt1.rsHeight);
+      } catch(e2) {
+        showDirectXWarning();
+      }
+    }
+
+    function htmlToText(html) {
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      return (div.innerText || div.textContent || '').trim();
+    }
+
+    function showDirectXWarning(extra) {
+      scanBtn.disabled = false;
+      scanArea.className = 'scan-area error';
+      scanText.innerHTML =
+        '<strong>DirectX capture detected</strong><br>' +
+        'The telescope dialog is a game-rendered popup that Alt1 cannot read in DirectX mode.<br><br>' +
+        '<strong>Fix:</strong> In Alt1 Settings → Capture tab → switch to <u>OpenGL</u>.<br>' +
+        'Then reload this app and scan again.<br><br>' +
+        'Or enter the region, size, and time manually below.';
+      setStatus('DirectX mode: switch to OpenGL in Alt1 settings', 'err');
     }
 
     function attemptParse(text, bounds) {
