@@ -759,59 +759,66 @@
       if (typeof alt1 === 'undefined') { simulateScan(); return; }
 
       scanArea.className = 'scan-area scanning';
-      scanText.textContent = 'Scanning screen…';
-      setStatus('Scanning…');
+      scanText.textContent = 'Step 1: Capturing screen pixels…';
+      setStatus('Capturing…');
       scanBtn.disabled = true;
 
-      const sw = alt1.rsWidth, sh = alt1.rsHeight;
+      // setTimeout lets the UI repaint before getRegion blocks the thread
+      setTimeout(() => {
+        try {
+          const sw = alt1.rsWidth, sh = alt1.rsHeight;
+          scanText.textContent = `Step 1: getRegion(0,0,${sw},${sh})…`;
 
-      try {
-        // ── STEP 1: Get full screen pixels to locate the parchment dialog ──
-        const buf = alt1.getRegion(0, 0, sw, sh);
-        if (!buf || buf.length === 0) {
-          diagFail(
-            'getRegion() returned empty — "View screen" permission may not be active.\n' +
-            'Right-click the app window spanner → confirm "View screen" is checked.'
-          );
-          return;
-        }
+          const buf = alt1.getRegion(0, 0, sw, sh);
 
-        console.log(`[StarScout] getRegion returned ${buf.length} values for ${sw}x${sh}`);
-
-        // Log a sample pixel to verify channel order
-        const sample = buf[Math.floor(sh/2) * sw + Math.floor(sw/2)] >>> 0;
-        console.log(`[StarScout] Center pixel raw: 0x${sample.toString(16).padStart(8,'0')}`);
-
-        const imgData = int32ToRGBA(buf, sw, sh);
-
-        // Log center pixel after conversion
-        const ci = (Math.floor(sh/2) * sw + Math.floor(sw/2)) * 4;
-        console.log(`[StarScout] Center pixel RGB: ${imgData.data[ci]},${imgData.data[ci+1]},${imgData.data[ci+2]}`);
-
-        const bounds = findDialogBounds(imgData);
-
-        if (!bounds) {
-          // Try alternate channel order (some Alt1 versions return ARGB not BGRA)
-          console.log('[StarScout] No dialog with BGRA — trying ARGB channel order');
-          const imgData2 = int32ToRGBA_alt(buf, sw, sh);
-          const bounds2 = findDialogBounds(imgData2);
-          if (!bounds2) {
+          if (buf === null || buf === undefined) {
             diagFail(
-              'Dialog not found on screen.\n' +
-              'Make sure the telescope dialog is fully visible and unobscured, then scan again.'
+              'getRegion() returned null.\n\n' +
+              '"View screen" permission is not active for this app.\n\n' +
+              'Fix: Right-click the Star Scout window spanner (⚙) → ' +
+              'tick "View screen" → reload the app.'
             );
             return;
           }
-          doOCR(bounds2);
-          return;
+
+          if (buf.length === 0) {
+            diagFail('getRegion() returned empty buffer. RS client may not be focused.');
+            return;
+          }
+
+          const p0 = buf[0] >>> 0;
+          console.log(`[StarScout] buf[0]=0x${p0.toString(16)} len=${buf.length} ${sw}x${sh}`);
+          scanText.textContent = `Step 2: Got ${buf.length} pixels. Finding parchment dialog…`;
+
+          // Try both channel orderings
+          const imgA = int32ToRGBA(buf, sw, sh);
+          const imgB = int32ToRGBA_alt(buf, sw, sh);
+          const boundsA = findDialogBounds(imgA);
+          const boundsB = findDialogBounds(imgB);
+          const bounds = boundsA || boundsB;
+
+          console.log(`[StarScout] boundsA=${JSON.stringify(boundsA)} boundsB=${JSON.stringify(boundsB)}`);
+
+          if (!bounds) {
+            const mid = (Math.floor(sh/2) * sw + Math.floor(sw/2)) * 4;
+            const pa = imgA.data;
+            diagFail(
+              `Step 2: Dialog not found.\n\n` +
+              `Center pixel RGB=(${pa[mid]},${pa[mid+1]},${pa[mid+2]})\n\n` +
+              `Make sure the telescope dialog is fully visible, then scan again.\n` +
+              `Share this message if it keeps failing.`
+            );
+            return;
+          }
+
+          scanText.textContent = `Step 3: Dialog at (${bounds.x},${bounds.y}) ${bounds.w}×${bounds.h}. Reading text…`;
+          doOCR(bounds);
+
+        } catch(err) {
+          console.error('[StarScout] scanScreen error:', err);
+          diagFail(`Scan error: ${err.message || String(err)}`);
         }
-
-        doOCR(bounds);
-
-      } catch(err) {
-        console.error('[StarScout] scan error:', err);
-        diagFail(`Error: ${err.message || err}`);
-      }
+      }, 50);
     }
 
     // Alternate channel order: ARGB (A=byte3, R=byte2, G=byte1, B=byte0)
