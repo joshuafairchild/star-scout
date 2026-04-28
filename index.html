@@ -462,8 +462,7 @@
   <!-- Copy flash -->
   <div class="copy-flash" id="copyFlash">✓ Copied to clipboard!</div>
 
-  <!-- Alt1 wrapper library — provides a1lib.captureHold(), etc. -->
-  <script src="https://runeapps.org/js/alt1lib.js"></script>
+  <!-- Alt1 wrapper library — not needed, we use window.alt1 directly -->
   <script>
     // ── Region name → abbreviation map ──
     const REGION_MAP = {
@@ -657,49 +656,6 @@
     // then display the raw pixel coordinates so the user can confirm detection works,
     // and simultaneously try the alt1 text activator path.
 
-    const PARCHMENT = { rMin:175, rMax:235, gMin:160, gMax:215, bMin:120, bMax:180 };
-
-    function isParchment(r, g, b) {
-      return r >= PARCHMENT.rMin && r <= PARCHMENT.rMax
-          && g >= PARCHMENT.gMin && g <= PARCHMENT.gMax
-          && b >= PARCHMENT.bMin && b <= PARCHMENT.bMax;
-    }
-
-    // Convert Int32Array (BGRA packed ints from alt1.capture) to ImageData
-    function int32ToImageData(buf, w, h) {
-      const out = new Uint8ClampedArray(w * h * 4);
-      for (let i = 0; i < w * h; i++) {
-        const px = buf[i];
-        out[i*4+0] = (px >> 16) & 0xff; // R
-        out[i*4+1] = (px >> 8)  & 0xff; // G
-        out[i*4+2] =  px        & 0xff; // B
-        out[i*4+3] = 255;
-      }
-      return { data: out, width: w, height: h };
-    }
-
-    function findDialogBounds(imgData) {
-      const { data, width, height } = imgData;
-      let minX = width, maxX = 0, minY = height, maxY = 0, hits = 0;
-      for (let y = 0; y < height; y += 3) {
-        for (let x = 0; x < width; x += 3) {
-          const i = (y * width + x) * 4;
-          if (isParchment(data[i], data[i+1], data[i+2])) {
-            hits++;
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-          }
-        }
-      }
-      const w = maxX - minX, h = maxY - minY;
-      if (hits < 60 || w < 150 || h < 25) return null;
-      return { x: Math.max(0,minX-10), y: Math.max(0,minY-10),
-               w: Math.min(width, w+20), h: Math.min(height, h+20),
-               hits };
-    }
-
     // ── Real Alt1 API (confirmed from diagnostic) ──
     // alt1.getRegion(x, y, w, h)  → Int32Array of BGRA pixels
     // alt1.bindReadString(x, y, w, h, font?) → reads RS text from screen region → string
@@ -878,91 +834,6 @@
         `This may mean the font isn't recognised or the dialog uses a non-standard font.<br><br>` +
         `Please fill in the fields manually below.`;
       setStatus(`Dialog found at (${bounds.x},${bounds.y}) but OCR returned empty`, 'err');
-    }
-
-    function diagFail(msg) {
-      scanBtn.disabled = false;
-      scanArea.className = 'scan-area error';
-      scanText.textContent = msg;
-      setStatus(msg.split('\n')[0], 'err');
-    }
-
-    function readDialogText(imgData, bounds) {
-      console.log(`[StarScout] Dialog found at x:${bounds.x} y:${bounds.y} w:${bounds.w} h:${bounds.h} hits:${bounds.hits}`);
-
-      const darkRows = extractTextPixels(imgData, bounds);
-      console.log(`[StarScout] Dark text rows in dialog: ${darkRows}`);
-
-      // Now crop the dialog region and render it to a canvas to attempt OCR via
-      // putting it on screen for the user to read, OR use the activator text path.
-      // Since we don't have the npm font library, show the user the capture worked
-      // and ask them to use the Alt+1 activator method instead, OR render to canvas.
-
-      // Render the cropped dialog to a canvas and display it for visual confirmation
-      const canvas = document.createElement('canvas');
-      canvas.width = bounds.w;
-      canvas.height = bounds.h;
-      const ctx = canvas.getContext('2d');
-      const crop = new ImageData(bounds.w, bounds.h);
-      for (let y = 0; y < bounds.h; y++) {
-        for (let x = 0; x < bounds.w; x++) {
-          const si = ((bounds.y + y) * imgData.width + (bounds.x + x)) * 4;
-          const di = (y * bounds.w + x) * 4;
-          crop.data[di]   = imgData.data[si];
-          crop.data[di+1] = imgData.data[si+1];
-          crop.data[di+2] = imgData.data[si+2];
-          crop.data[di+3] = 255;
-        }
-      }
-      ctx.putImageData(crop, 0, 0);
-
-      // Try to read text from the canvas using simple color-based OCR on brown text
-      // The dialog text in RS3 telescope popup is dark brown: approx rgb(40,20,10)
-      // We'll attempt a simple row-by-row character boundary detection
-      const text = readDarkTextFromCanvas(canvas, bounds.w, bounds.h);
-      console.log('[StarScout] Extracted text:', text);
-
-      if (text && text.length > 20) {
-        attemptParse(text, bounds);
-      } else {
-        // Show the captured image in the scan area so user can see what was captured
-        scanBtn.disabled = false;
-        scanArea.className = 'scan-area success';
-        const dataUrl = canvas.toDataURL();
-        scanText.innerHTML =
-          `<div>✓ Dialog detected at (${bounds.x}, ${bounds.y}) — ${bounds.w}×${bounds.h}px</div>` +
-          `<img src="${dataUrl}" style="max-width:100%;margin-top:6px;border:1px solid #5a4820;" />` +
-          `<div style="margin-top:6px;font-size:11px;color:var(--text-dim)">OCR extracted: "${text || '(none)'}" — please fill fields manually if needed.</div>`;
-        setStatus('Dialog found — check preview and fill manually if needed', 'ok');
-      }
-    }
-
-    // Attempt simple dark-pixel text extraction from canvas
-    function readDarkTextFromCanvas(canvas, w, h) {
-      const ctx = canvas.getContext('2d');
-      const d = ctx.getImageData(0, 0, w, h).data;
-      // Collect all non-parchment, non-white pixels as potential text
-      // This is very rough — just enough to get keywords like region names
-      let chars = [];
-      // We look for vertical strips of dark pixels (crude column detection)
-      // In practice, this won't give us actual letters without a proper font map
-      // Instead: look for the presence of expected keyword colors
-      // RS3 dialog text is rendered in a specific dark brown/black
-
-      // Simple heuristic: scan horizontally across middle of dialog
-      // Count transitions between dark and light pixels as character boundaries
-      const midY = Math.floor(h / 2);
-      let inDark = false, segments = 0;
-      for (let x = 4; x < w - 4; x++) {
-        const i = (midY * w + x) * 4;
-        const isDark = d[i] < 90 && d[i+1] < 70 && d[i+2] < 60;
-        if (isDark && !inDark) { segments++; inDark = true; }
-        else if (!isDark) inDark = false;
-      }
-
-      // If we have text-like segments, return a placeholder indicating text was found
-      // Full OCR would require the alt1 font library
-      return segments > 10 ? `[detected ~${segments} character groups — manual OCR needed]` : '';
     }
 
     function diagFail(msg) {
