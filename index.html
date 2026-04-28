@@ -462,6 +462,8 @@
   <!-- Copy flash -->
   <div class="copy-flash" id="copyFlash">✓ Copied to clipboard!</div>
 
+  <!-- Alt1 wrapper library — provides a1lib.captureHold(), etc. -->
+  <script src="https://runeapps.org/js/alt1lib.js"></script>
   <script>
     // ── Region name → abbreviation map ──
     const REGION_MAP = {
@@ -509,16 +511,16 @@
     }
 
     // ── Parse telescope dialog text ──
-    // Handles variants like:
-    //   "The star will land in the Kandarin region in approximately 8 minutes."
-    //   "A shooting star will land somewhere in Karamja in about 12 minutes. Size: 5."
-    //   "...Crandor/Karamja region... size 7 star... 8 minutes..."
+    // Confirmed dialog format from screenshot:
+    //   "You see a shooting star!"
+    //   "The star looks like it will land in Asgarnia in the next 37 to 39 minutes."
+    //   "The star looks to be size 7."
     function parseTelescopeText(text) {
-      const result = { region: null, size: null, time: null };
+      const result = { region: null, size: null, time: null, rawText: text };
       if (!text) return result;
-      const t = text.replace(/\n/g, ' ');
+      const t = text.replace(/\n/g, ' ').replace(/\s+/g, ' ');
 
-      // Region — look for known region names
+      // Region — longest-match first so "Mos Le'Harmless" beats "Mos"
       const regionPattern = new RegExp(
         Object.keys(REGION_MAP).sort((a,b) => b.length - a.length)
           .map(k => k.replace(/[/\\()']/g, s => '\\' + s))
@@ -528,13 +530,20 @@
       const regionMatch = t.match(regionPattern);
       if (regionMatch) result.region = lookupRegion(regionMatch[0]);
 
-      // Size — "size 7", "size: 7", "s7", "a size 7 star"
-      const sizeMatch = t.match(/size[:\s]*(\d{1,2})|s(\d{1,2})\b|(\d{1,2})\s*(?:size|star)/i);
-      if (sizeMatch) result.size = parseInt(sizeMatch[1] || sizeMatch[2] || sizeMatch[3]);
+      // Size — "to be size 7", "size 7", "size: 7"
+      const sizeMatch = t.match(/\bto be size (\d{1,2})\b/i)
+                     || t.match(/\bsize[:\s]+(\d{1,2})\b/i);
+      if (sizeMatch) result.size = parseInt(sizeMatch[1]);
 
-      // Time — "8 minutes", "approximately 12 minutes", "in about 8 min"
-      const timeMatch = t.match(/(\d{1,3})\s*(?:minutes?|mins?)/i);
-      if (timeMatch) result.time = parseInt(timeMatch[1]);
+      // Time — handles RANGE "37 to 39 minutes" → takes lower bound
+      //        also handles single "8 minutes", "approximately 12 minutes"
+      const rangeMatch = t.match(/(\d{1,3})\s+to\s+(\d{1,3})\s+minutes?/i);
+      if (rangeMatch) {
+        result.time = parseInt(rangeMatch[1]); // lower bound of range
+      } else {
+        const singleMatch = t.match(/(\d{1,3})\s*minutes?/i);
+        if (singleMatch) result.time = parseInt(singleMatch[1]);
+      }
 
       return result;
     }
@@ -631,78 +640,127 @@
       setStatus('World not detected — enter manually', 'err');
     }
 
-    // ── Screen scan (Alt1 pixel read) ──
-    // Captures a region of the screen and OCRs for the telescope dialog.
-    // The telescope chat box in RS3 appears near the chat interface.
-    // We use alt1.captureHtml / alt1.readString depending on availability.
+    // ── Screen scan — Alt1 pixel color search ──
+    //
+    // Strategy: The RS3 telescope dialog has a distinctive parchment/tan background.
+    // From the screenshot: approximately RGB(210, 190, 150) — a warm beige.
+    // We scan the full screen for a large horizontal band of that color,
+    // crop that region, then use Alt1's built-in OCR (readString / captureHtml)
+    // on just that crop.
+    //
+    // Parchment color range (sampled from screenshot):
+    //   R: 185–230, G: 170–210, B: 130–175
+    //
+    // The dialog box is typically ~400px wide and ~100px tall.
+
+    const PARCHMENT = { rMin:185, rMax:230, gMin:168, gMax:212, bMin:128, bMax:178 };
+    const MIN_DIALOG_W = 250;   // minimum width in pixels to consider a match
+    const MIN_DIALOG_H = 40;    // minimum height
+
+    function isParchment(r, g, b) {
+      return r >= PARCHMENT.rMin && r <= PARCHMENT.rMax
+          && g >= PARCHMENT.gMin && g <= PARCHMENT.gMax
+          && b >= PARCHMENT.bMin && b <= PARCHMENT.bMax;
+    }
+
+    // Find the bounding box of the parchment dialog in RGBA pixel data
+    function findDialogBounds(data, width, height) {
+      let minX = width, maxX = 0, minY = height, maxY = 0;
+      let hits = 0;
+
+      // Sample every 4th pixel for speed (dialog is large enough)
+      for (let y = 0; y < height; y += 4) {
+        for (let x = 0; x < width; x += 4) {
+          const i = (y * width + x) * 4;
+          if (isParchment(data[i], data[i+1], data[i+2])) {
+            hits++;
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      const w = maxX - minX;
+      const h = maxY - minY;
+      if (hits < 100 || w < MIN_DIALOG_W || h < MIN_DIALOG_H) return null;
+
+      // Add small padding
+      return {
+        x: Math.max(0, minX - 8),
+        y: Math.max(0, minY - 8),
+        w: Math.min(width,  w + 16),
+        h: Math.min(height, h + 16)
+      };
+    }
+
     function scanScreen() {
       if (typeof alt1 === 'undefined') {
-        // Dev fallback: simulate for testing outside Alt1
         simulateScan();
         return;
       }
 
       scanArea.className = 'scan-area scanning';
-      scanText.textContent = 'Scanning…';
-      setStatus('Scanning screen for telescope dialog…');
+      scanText.textContent = 'Scanning for dialog…';
+      setStatus('Scanning screen…');
       scanBtn.disabled = true;
 
       try {
-        // Capture a large region covering the RS chatbox area.
-        // We scan multiple candidate regions: lower-center for chat,
-        // and center for any open dialog popup.
+        // Capture full RS client as raw pixels
         const img = a1lib.captureHold(0, 0, alt1.rsWidth, alt1.rsHeight);
-        img.toData().then(data => {
-          // Use the RS3 font reader if available
-          let found = false;
 
-          // Try using alt1.readString if the runescape fonts are loaded
-          if (window.rsFont || window.a1lib) {
-            try {
-              const rsf = new a1lib.PixelSearch(img);
-              // Look for yellow chat text color (RS dialog text is typically #ffff00 or #ffffff)
-              // We'll do a broad text read and look for telescope keywords
-              const chatText = img.findSubimage(/* telescope dialog texture */);
-              // Fall through to regex parse
-            } catch(e) {}
-          }
+        img.toData().then(imageData => {
+          const bounds = findDialogBounds(imageData.data, alt1.rsWidth, alt1.rsHeight);
 
-          // Primary method: use alt1.captureHtml for OCR
-          if (!found && alt1.captureHtml) {
-            alt1.captureHtml(function(html) {
-              const div = document.createElement('div');
-              div.innerHTML = html;
-              const text = div.innerText || div.textContent || '';
-              attemptParse(text);
-            }, 0, 0, alt1.rsWidth, alt1.rsHeight);
+          if (!bounds) {
+            // Parchment not found — dialog may not be open
+            fallbackManual(
+              'Parchment dialog not detected.\n' +
+              'Make sure the telescope dialog is open and fully visible, then scan again.'
+            );
             return;
           }
 
-          // If we reach here, we didn't get anything useful
-          if (!found) {
-            fallbackManual('Could not read screen. Use a telescope and try again, or fill in manually.');
-          }
-        }).catch(() => {
-          fallbackManual('Screen capture failed. Check Alt1 pixel permissions.');
-        });
-      } catch(e) {
-        // Alt1 API varies — try simpler capture path
-        try {
-          const bounds = [0, alt1.rsHeight - 200, alt1.rsWidth, 200]; // bottom strip (chat area)
+          // Got a bounds — now OCR that crop using captureHtml
+          // captureHtml(callback, x, y, w, h) — reads RS font text from that screen region
           alt1.captureHtml(function(html) {
             const div = document.createElement('div');
             div.innerHTML = html;
-            attemptParse(div.innerText || div.textContent || '');
-          }, bounds[0], bounds[1], bounds[2], bounds[3]);
+            const text = (div.innerText || div.textContent || '').trim();
+
+            if (!text) {
+              // captureHtml returned nothing — try reading raw text from the image
+              // using the full-screen capture and manual regex on any visible text
+              fallbackManual(
+                'Dialog found on screen but text could not be read.\n' +
+                'Try granting Alt1 the "View screen" permission, or enter manually.'
+              );
+              return;
+            }
+
+            attemptParse(text, bounds);
+          }, bounds.x, bounds.y, bounds.w, bounds.h);
+
+        }).catch(err => {
+          fallbackManual('Screen capture failed. Check Alt1 pixel permission is enabled.');
+        });
+
+      } catch(e) {
+        // a1lib not available or capture failed — try legacy captureHtml full screen
+        try {
+          alt1.captureHtml(function(html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            attemptParse((div.innerText || div.textContent || '').trim(), null);
+          }, 0, 0, alt1.rsWidth, alt1.rsHeight);
         } catch(e2) {
-          fallbackManual('Alt1 screen read unavailable. Enter data manually below.');
+          fallbackManual('Could not access screen. Make sure "View screen" permission is enabled in Alt1.');
         }
       }
-
-      scanBtn.disabled = false;
     }
 
-    function attemptParse(text) {
+    function attemptParse(text, bounds) {
       scanBtn.disabled = false;
       const parsed = parseTelescopeText(text);
       const found = parsed.region || parsed.size || parsed.time;
@@ -717,11 +775,14 @@
         if (parsed.region) summary.push(`Region: ${parsed.region}`);
         if (parsed.size)   summary.push(`Size: ${parsed.size}`);
         if (parsed.time)   summary.push(`Time: ${parsed.time} min`);
-        scanText.textContent = '✓ Found — ' + summary.join(' · ');
+        if (bounds) summary.push(`[${bounds.x},${bounds.y}]`);
+        scanText.textContent = '✓ ' + summary.join(' · ');
         setStatus('Dialog parsed successfully', 'ok');
         renderOutput();
       } else {
-        fallbackManual('No telescope dialog found in screen text. Make sure the telescope dialog is visible, then try again.');
+        // Show what text was found (helps debugging)
+        const preview = text ? text.substring(0, 120).replace(/\s+/g,' ') : '(empty)';
+        fallbackManual(`Dialog found but no star data matched.\nRead: "${preview}"`);
       }
     }
 
@@ -740,14 +801,16 @@
       setStatus('Simulating scan (no Alt1 detected)…');
 
       setTimeout(() => {
+        // Matches confirmed in-game dialog format from screenshot
         const sampleDialogs = [
-          'A shooting star will land in the Kandarin region in approximately 8 minutes. The star appears to be size 7.',
-          'The star will land somewhere in Misthalin in about 4 minutes. Size 9.',
-          'Your telescope shows a star heading to the Crandor/Karamja region. Estimated time: 12 minutes. Size: 5.',
-          'The shooting star will land in the Wilderness region in approximately 2 minutes. Size 10.',
+          'You see a shooting star! The star looks like it will land in Asgarnia in the next 37 to 39 minutes. The star looks to be size 7.',
+          'You see a shooting star! The star looks like it will land in Kandarin in the next 4 to 6 minutes. The star looks to be size 9.',
+          'You see a shooting star! The star looks like it will land in Crandor/Karamja in the next 12 to 14 minutes. The star looks to be size 5.',
+          'You see a shooting star! The star looks like it will land in Wilderness in the next 2 to 4 minutes. The star looks to be size 10.',
+          'You see a shooting star! The star looks like it will land in Misthalin in the next 18 to 20 minutes. The star looks to be size 3.',
         ];
         const sample = sampleDialogs[Math.floor(Math.random() * sampleDialogs.length)];
-        attemptParse(sample);
+        attemptParse(sample, null);
         scanBtn.disabled = false;
       }, 1200);
     }
