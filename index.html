@@ -1399,175 +1399,196 @@ function scanScreen() {
     try {
 
       // Step 1: locate RS window
-      const rsX      = alt1.rsX;
-      const rsY      = alt1.rsY;
-      const rsW      = alt1.rsWidth;
-      const rsH      = alt1.rsHeight;
+      const rsX = alt1.rsX, rsY = alt1.rsY;
+      const rsW = alt1.rsWidth, rsH = alt1.rsHeight;
       const rsLinked = alt1.rsLinked;
 
-      // permissionPixel (no 's') is the correct property name per Alt1 API docs
-      const hasPerm  = alt1.permissionPixel;
-
-      console.log('[StarScout] rsLinked=' + rsLinked + ' w=' + rsW + ' h=' + rsH + ' permissionPixel=' + hasPerm);
+      console.log('[StarScout] rsLinked=' + rsLinked + ' w=' + rsW + ' h=' + rsH + ' permissionPixel=' + alt1.permissionPixel);
 
       if (!rsLinked || rsW <= 0 || rsH <= 0) {
         diagFail('RuneScape window not detected.\nMake sure RuneScape is open and Alt1 has found it.');
         return;
       }
-
-      if (!hasPerm) {
-        diagFail('Missing pixel permission.\nRight-click the app spanner → enable "View screen", then reload.');
+      if (!alt1.permissionPixel) {
+        diagFail('Missing pixel permission.\nRight-click the app spanner \u2192 enable "View screen", then reload.');
         return;
       }
 
-      // Step 2: capture the bottom half as base64 ARGB.
-      //
-      // IMPORTANT: alt1.getRegion(x, y, w, h) returns a BASE64-ENCODED STRING
-      // of 8bpp ARGB pixel data, NOT an Int32Array.
-      // Coordinates are RS-window-relative.
-
+      // Step 2: capture the bottom half as BGRA base64
       const cropY = Math.floor(rsH * 0.5);
       const cropH = rsH - cropY;
 
       console.log('[StarScout] getRegion(0, ' + cropY + ', ' + rsW + ', ' + cropH + ')');
       scanText.textContent = 'Step 2: Capturing pixels…';
 
-      let b64;
-      try {
-        b64 = alt1.getRegion(0, cropY, rsW, cropH);
-      } catch(e) {
-        diagFail('getRegion failed: ' + e.message);
-        return;
-      }
-
+      const b64 = alt1.getRegion(0, cropY, rsW, cropH);
       if (!b64 || b64.length === 0) {
-        diagFail('getRegion returned empty.\nEnable "View screen" permission (app spanner).');
+        diagFail('getRegion returned empty. Enable "View screen" permission (app spanner).');
         return;
       }
 
-      console.log('[StarScout] getRegion returned ' + b64.length + ' chars of base64');
+      const raw = atob(b64);
+      console.log('[StarScout] decoded ' + raw.length + ' bytes (' + rsW + 'x' + cropH + ' BGRA)');
 
-      // Step 3: decode base64 ARGB → canvas → PNG → send to vision API.
+      // Step 3: find the dialog using the boxtl golden anchor row.
       //
-      // The base64 decodes to raw bytes in ARGB order (A,R,G,B per pixel).
-      // Canvas ImageData wants RGBA order.
+      // From skillbert's alt1/dialog source (src/dialog/index.ts):
+      //   - Uses findSubimage(imgs.boxtl) to locate the dialog top-left corner
+      //   - boxtl is 16x32px with a very distinctive bottom edge:
+      //       row 29 (from top): RGB(29,27,23)  - near-black strip
+      //       row 30:            RGB(77,61,38)  - GOLDEN/AMBER <- unique anchor
+      //       row 31:            RGB(59,46,27)  - dark brown
+      //   - Verifies boxtr exists at boxtl.x + 492
+      //   - Sets dialog pos: x=box.x+1, y=box.y+1, width=506, height=130
+      //
+      // We scan for the golden row RGB(77,61,38) which appears ONLY at the
+      // bottom edge of the dialog frame. r-b=39 makes it highly distinctive.
 
-      scanText.textContent = 'Step 3: Decoding pixels…';
+      scanText.textContent = 'Step 3: Locating dialog frame…';
 
-      const raw    = atob(b64);
-      const pixels = raw.length / 4;
-      const canvas = document.createElement('canvas');
-      canvas.width  = rsW;
-      canvas.height = cropH;
-      // willReadFrequently=true avoids repeated readback warnings
-      const ctx     = canvas.getContext('2d', { willReadFrequently: true });
-      const imgData = ctx.createImageData(rsW, cropH);
-      const dst     = imgData.data;
-
-      // getRegion returns BGRA bytes (Windows DIB format, little-endian).
-      // byte0=B, byte1=G, byte2=R, byte3=A
-      // Canvas ImageData wants RGBA, so we reorder:
-      for (let i = 0; i < pixels; i++) {
-        dst[i * 4 + 0] = raw.charCodeAt(i * 4 + 2); // R
-        dst[i * 4 + 1] = raw.charCodeAt(i * 4 + 1); // G
-        dst[i * 4 + 2] = raw.charCodeAt(i * 4 + 0); // B
-        dst[i * 4 + 3] = 255;
+      function getBGRA(x, y) {
+        const i = (y * rsW + x) * 4;
+        // getRegion returns BGRA bytes
+        return {
+          b: raw.charCodeAt(i + 0),
+          g: raw.charCodeAt(i + 1),
+          r: raw.charCodeAt(i + 2),
+          a: raw.charCodeAt(i + 3)
+        };
       }
 
-      ctx.putImageData(imgData, 0, 0);
+      function isGoldenAnchor(r, g, b) {
+        // boxtl row 30: RGB(77,61,38) - very specific amber color
+        return Math.abs(r - 77) <= 12
+            && Math.abs(g - 61) <= 12
+            && Math.abs(b - 38) <= 10;
+      }
 
-      // Verify center pixel is not black (sanity check)
-      const cx = Math.floor(rsW / 2);
-      const cy = Math.floor(cropH / 2);
-      const cp = ctx.getImageData(cx, cy, 1, 1).data;
-      console.log('[StarScout] center pixel RGBA=(' + cp[0] + ',' + cp[1] + ',' + cp[2] + ',' + cp[3] + ')');
+      // Scan for a horizontal run of golden pixels >= 400px
+      // (the full bottom edge of the dialog frame is 506px wide)
+      let anchorY = -1, anchorX = -1, anchorW = 0;
 
-      // Step 4: now use bindRegion + bindReadString on the same region
-      // so we get Alt1's OCR, but with the correct pixel data verified above.
-      // Try reading text from the bound region now that we know pixels work.
+      for (let y = 0; y < cropH && anchorY === -1; y++) {
+        let runStart = -1, runLen = 0;
+        for (let x = 0; x < rsW; x++) {
+          const px = getBGRA(x, y);
+          if (isGoldenAnchor(px.r, px.g, px.b)) {
+            if (runStart === -1) runStart = x;
+            runLen++;
+          } else {
+            if (runLen >= 400) { anchorY = y; anchorX = runStart; anchorW = runLen; break; }
+            runStart = -1; runLen = 0;
+          }
+        }
+        if (runLen >= 400 && anchorY === -1) { anchorY = y; anchorX = runStart; anchorW = runLen; }
+      }
 
-      scanText.textContent = 'Step 4: Binding region for OCR…';
+      console.log('[StarScout] golden anchor: y=' + anchorY + ' x=' + anchorX + ' w=' + anchorW);
+
+      if (anchorY === -1) {
+        diagFail(
+          'Dialog frame not found.\n\n' +
+          'Make sure the telescope dialog is fully visible on screen, then scan.\n\n' +
+          'Check Dev Console for [StarScout] logs.'
+        );
+        return;
+      }
+
+      // Step 4: calculate dialog position from anchor.
+      //
+      // The golden row is boxtl row 30 (0-indexed), so boxtl top = anchorY - 30.
+      // From skillbert: dialog pos x = boxtl.x + 1, y = boxtl.y + 1
+      // Dialog is always width=506, height=130.
+      //
+      // Coordinates are in crop space. Add cropY to get RS-window-relative.
+
+      const boxtlTop = anchorY - 30;
+      const dialogX  = anchorX + 1;       // RS-window-relative x
+      const dialogY  = cropY + boxtlTop + 1; // RS-window-relative y
+      const DIALOG_W = 506;
+      const DIALOG_H = 130;
+
+      console.log('[StarScout] dialog position: x=' + dialogX + ' y=' + dialogY + ' w=' + DIALOG_W + ' h=' + DIALOG_H);
+      scanText.textContent = 'Step 4: Dialog found at (' + dialogX + ',' + dialogY + '). Reading text…';
+
+      // Step 5: bind the exact dialog region and read text.
+      //
+      // From skillbert's readDialog():
+      //   buf = imgref.toData(pos.x, pos.y+33, pos.width, 80)
+      //   Looks for black pixels (sum < 50) between x=200-300
+      //   Reads with OCR.readLine using fontmono2 (12pt) and color [0,0,0]
+      //
+      // For our bindReadString approach, we bind just the text area:
+      //   y+33 to y+113 (80px of dialog body containing text lines)
+      // Text lines are spaced ~13-16px apart in the 12pt font.
+
+      const textX = dialogX;
+      const textY = dialogY + 33;
+      const textW = DIALOG_W;
+      const textH = 80;
+
+      console.log('[StarScout] bindRegion(' + textX + ', ' + textY + ', ' + textW + ', ' + textH + ')');
 
       let imgId = -1;
       try {
-        imgId = alt1.bindRegion(0, cropY, rsW, cropH);
+        imgId = alt1.bindRegion(textX, textY, textW, textH);
         console.log('[StarScout] bindRegion id=' + imgId);
       } catch(e) {
         console.error('[StarScout] bindRegion failed:', e.message);
+        diagFail('bindRegion failed: ' + e.message);
+        return;
       }
 
-      if (imgId >= 0) {
-        // Verify bindGetPixel matches what getRegion gave us
-        let bpx = 0;
-        try { bpx = alt1.bindGetPixel(imgId, cx, cy); } catch(e) {}
-        const br = (bpx >> 16) & 0xff;
-        const bg = (bpx >>  8) & 0xff;
-        const bb =  bpx        & 0xff;
-        console.log('[StarScout] bindGetPixel at center: raw=' + bpx + ' RGB=(' + br + ',' + bg + ',' + bb + ')');
+      if (imgId < 0) {
+        diagFail('bindRegion returned invalid id. Enable "View screen" permission.');
+        return;
+      }
 
-        // Scan for text
-        const seenText = new Set();
-        const allLines = [];
-        for (let y = 0; y < cropH; y++) {
-          let line = '';
-          try { line = alt1.bindReadString(imgId, 'chat', 0, y) || ''; } catch(e) { break; }
-          const t = line.trim();
-          if (t.length > 2 && !seenText.has(t)) {
-            seenText.add(t);
-            allLines.push(t);
-            console.log('[StarScout] text y=' + y + ': ' + JSON.stringify(t));
-            if (allLines.length >= 10) break;
-          }
-        }
+      // Scan every pixel row for text using 'chat' font
+      // Dialog text is black on parchment, 12pt font, lines ~13-16px apart
+      const seenText = new Set();
+      const allLines = [];
 
-        console.log('[StarScout] OCR lines:', JSON.stringify(allLines));
-
-        if (allLines.length > 0) {
-          const fullText = allLines.join(' ');
-          const lower = fullText.toLowerCase();
-          if (lower.includes('shooting star') || lower.includes('size') || lower.includes('land in') || lower.includes('minutes')) {
-            attemptParse(fullText, null);
-            return;
-          }
+      for (let y = 0; y < textH; y++) {
+        let line = '';
+        try { line = alt1.bindReadString(imgId, 'chat', 0, y) || ''; } catch(e) { continue; }
+        const t = line.trim();
+        if (t.length >= 3 && !seenText.has(t)) {
+          seenText.add(t);
+          allLines.push(t);
+          console.log('[StarScout] text y=' + y + ': ' + JSON.stringify(t));
+          if (allLines.length >= 10) break;
         }
       }
 
-      // Step 5: OCR via canvas pixel scanning if bindReadString didn't work.
-      // We have real pixels on the canvas — scan for the dialog text using
-      // our colour-based detection and then display what pixels we found
-      // so the user can manually fill in if needed.
+      console.log('[StarScout] lines found: ' + allLines.length + ' -> ' + JSON.stringify(allLines));
 
-      scanText.textContent = 'Step 5: Pixel scanning for dialog…';
-      // Log a grid of pixel colors so we can see what the capture looks like
-      const sampleRows = [0, Math.floor(cropH*0.25), Math.floor(cropH*0.5), Math.floor(cropH*0.75)];
-      for (const sy of sampleRows) {
-        const rowSamples = [];
-        for (let sx = 0; sx < rsW; sx += Math.floor(rsW / 8)) {
-          const si = (sy * rsW + sx) * 4;
-          const spx = ctx.getImageData(sx, sy, 1, 1).data;
-          rowSamples.push('(' + spx[0] + ',' + spx[1] + ',' + spx[2] + ')');
-        }
-        console.log('[StarScout] row y=' + sy + ': ' + rowSamples.join(' '));
-      }
-
-      const pxResult = scanCanvasForDialog(ctx, rsW, cropH);
-
-      if (pxResult) {
-        console.log('[StarScout] pixel scan found dialog at', JSON.stringify(pxResult));
+      if (allLines.length === 0) {
+        // bindReadString still not finding text - show what we found so user can enter manually
+        scanBtn.disabled = false;
         scanArea.className = 'scan-area error';
         scanText.innerHTML =
-          '<strong>Dialog located at (' + pxResult.x + ', ' + pxResult.y + ') ' + pxResult.w + '×' + pxResult.h + 'px</strong><br><br>' +
-          'Alt1 OCR could not read the dialog font automatically.<br><br>' +
+          '<strong>Dialog located at (' + dialogX + ', ' + dialogY + ') — ' + DIALOG_W + '×' + DIALOG_H + 'px</strong><br><br>' +
+          'Frame found via golden anchor (y=' + (cropY + anchorY) + ' in RS window).<br><br>' +
+          'Alt1 bindReadString could not read the 12pt dialog font.<br>' +
           'Please fill in the fields manually below.';
         setStatus('Dialog found — manual entry needed', 'err');
-        scanBtn.disabled = false;
-      } else {
-        diagFail(
-          'No dialog found.\n\n' +
-          'Make sure the telescope dialog is fully visible, then scan.\n\n' +
-          'Center pixel: RGB(' + cp[0] + ',' + cp[1] + ',' + cp[2] + ')'
-        );
+        return;
       }
+
+      const fullText = allLines.join(' ');
+      const lower = fullText.toLowerCase();
+      const isStarDlg = lower.includes('shooting star') || lower.includes('size')
+                     || lower.includes('land in') || lower.includes('minutes');
+
+      console.log('[StarScout] fullText=' + JSON.stringify(fullText) + ' isStarDlg=' + isStarDlg);
+
+      if (!isStarDlg) {
+        diagFail('Text found but not the star dialog.\n\nRead: "' + fullText.substring(0, 150) + '"\n\nMake sure the telescope dialog is open, then scan.');
+        return;
+      }
+
+      attemptParse(fullText, null);
 
     } catch(err) {
       console.error('[StarScout] scanScreen error:', err);
@@ -1576,142 +1597,6 @@ function scanScreen() {
 
   }, 50);
 
-}
-
-// Canvas-based dialog detection.
-//
-// Confirmed pixel structure at midX=680 (crop coords):
-//   y=80-88:   parchment — BUT this is RS UI above the dialog, not dialog itself
-//   y=90-118:  transitional/grey — RS interface border
-//   y=120-152: DARK BAND — the solid dialog top frame (~32px tall)
-//   y=158-255: PARCHMENT — the actual dialog body
-//   y=260+:    non-parchment — below dialog
-//
-// Key insight: the real dialog parchment is always directly BELOW a dark band.
-// False parchment (RS UI bg) has NO dark band directly above it.
-//
-// Strategy:
-//   1. Find candidate parchment columns (50+ consecutive parchment pixels)
-//   2. For each candidate, walk UP to check if a dark band exists above it
-//   3. Only accept candidates where a dark band of >= 10px is found above
-//   4. Measure full width with 60px gap tolerance, full height
-
-function scanCanvasForDialog(ctx, w, h) {
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const px = imageData.data;
-
-  function isParchment(r, g, b) {
-    return r >= 165 && r <= 220
-        && g >= 140 && g <= 200
-        && b >= 105 && b <= 165
-        && (r - b) >= 38;
-  }
-
-  function isDark(r, g, b) {
-    return r >= 15 && r <= 65
-        && g >= 12 && g <= 60
-        && b >=  8 && b <= 55
-        && Math.abs(r - g) < 20
-        && Math.abs(g - b) < 20;
-  }
-
-  function getPixel(x, y) {
-    const i = (y * w + x) * 4;
-    return [px[i], px[i+1], px[i+2]];
-  }
-
-  // Majority-vote column check — tolerates text pixels
-  function isDialogColumn(x, centreY) {
-    let hits = 0;
-    for (let dy = -16; dy <= 16; dy += 8) {
-      const y = centreY + dy;
-      if (y < 0 || y >= h) continue;
-      const [r,g,b] = getPixel(x, y);
-      if (isParchment(r, g, b)) hits++;
-    }
-    return hits >= 3;
-  }
-
-  // Scan every 5px column for 50+ consecutive parchment pixels
-  // Collect ALL candidates, not just the first one
-  const candidates = [];
-  for (let x = 0; x < w; x += 5) {
-    let runStart = -1, runLen = 0;
-    for (let y = 0; y < h; y++) {
-      const [r,g,b] = getPixel(x, y);
-      if (isParchment(r, g, b)) {
-        if (runStart === -1) runStart = y;
-        runLen++;
-        if (runLen >= 50) {
-          candidates.push({ x, topY: runStart });
-          break;
-        }
-      } else {
-        runStart = -1; runLen = 0;
-      }
-    }
-  }
-
-  console.log('[StarScout] parchment candidates: ' + candidates.length + ' first x=' + (candidates[0] && candidates[0].x));
-
-  // For each candidate, check if a dark band exists directly above the parchment
-  // The dark band must be >= 10px tall starting within 30px above parchTopY
-  let chosen = null;
-  for (const c of candidates) {
-    const { x, topY } = c;
-    let darkCount = 0;
-    let darkTopY   = topY;
-    for (let y = topY - 1; y >= 0 && y >= topY - 60; y--) {
-      const [r,g,b] = getPixel(x, y);
-      if (isDark(r, g, b)) { darkCount++; darkTopY = y; }
-      else if (darkCount > 0 && topY - y > darkCount + 5) break; // gap too big
-    }
-    console.log('[StarScout] candidate x=' + x + ' topY=' + topY + ' darkCount=' + darkCount + ' darkTopY=' + darkTopY);
-    if (darkCount >= 10) {
-      chosen = { x, parchTopY: topY, darkTopY };
-      break;
-    }
-  }
-
-  if (!chosen) {
-    console.log('[StarScout] no candidate with dark band above found');
-    return null;
-  }
-
-  const { x: parchX, parchTopY, darkTopY } = chosen;
-
-  // Find bottom of parchment
-  let parchBotY = parchTopY;
-  for (let y = parchTopY; y < h && y < parchTopY + 200; y++) {
-    const [r,g,b] = getPixel(parchX, y);
-    if (isParchment(r, g, b)) parchBotY = y;
-    else if (y - parchBotY > 8) break;
-  }
-
-  // Use middle of parchment body for width walk
-  const midY = parchTopY + Math.floor((parchBotY - parchTopY) * 0.4);
-
-  // Walk left/right with 60px gap tolerance
-  let leftX = parchX, rightX = parchX;
-  let lastHitL = parchX;
-  for (let x = parchX; x >= 0; x--) {
-    if (isDialogColumn(x, midY)) { leftX = x; lastHitL = x; }
-    else if (lastHitL - x > 60) break;
-  }
-  let lastHitR = parchX;
-  for (let x = parchX; x < w; x++) {
-    if (isDialogColumn(x, midY)) { rightX = x; lastHitR = x; }
-    else if (x - lastHitR > 60) break;
-  }
-
-  const dialogW = rightX - leftX;
-  const dialogH = parchBotY - darkTopY;
-
-  console.log('[StarScout] final: x=' + leftX + ' y=' + darkTopY + ' w=' + dialogW + ' h=' + dialogH);
-
-  if (dialogW < 150 || dialogH < 50) return null;
-
-  return { x: leftX, y: darkTopY, w: dialogW, h: dialogH };
 }
 // ── OCR the located dialog region (pixel fallback path) ──
 // Called when the text-first path failed and pixel scanning found a region.
