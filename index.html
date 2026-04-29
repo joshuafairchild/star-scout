@@ -1538,6 +1538,18 @@ function scanScreen() {
       // so the user can manually fill in if needed.
 
       scanText.textContent = 'Step 5: Pixel scanning for dialog…';
+      // Log a grid of pixel colors so we can see what the capture looks like
+      const sampleRows = [0, Math.floor(cropH*0.25), Math.floor(cropH*0.5), Math.floor(cropH*0.75)];
+      for (const sy of sampleRows) {
+        const rowSamples = [];
+        for (let sx = 0; sx < rsW; sx += Math.floor(rsW / 8)) {
+          const si = (sy * rsW + sx) * 4;
+          const spx = ctx.getImageData(sx, sy, 1, 1).data;
+          rowSamples.push('(' + spx[0] + ',' + spx[1] + ',' + spx[2] + ')');
+        }
+        console.log('[StarScout] row y=' + sy + ': ' + rowSamples.join(' '));
+      }
+
       const pxResult = scanCanvasForDialog(ctx, rsW, cropH);
 
       if (pxResult) {
@@ -1566,33 +1578,58 @@ function scanScreen() {
 
 }
 
-// Canvas-based dialog detection — uses pixel colors from the actual decoded image
+// Canvas-based dialog detection.
+//
+// Strategy: scan row by row looking for a long horizontal run of dark pixels
+// (the solid black/dark-brown band at the top of the RS dialog).
+// A run >= 400px wide that is followed below by parchment pixels
+// is almost certainly the dialog top edge.
+//
+// The dialog is ~510px wide and ~135px tall.
+
 function scanCanvasForDialog(ctx, w, h) {
   const imageData = ctx.getImageData(0, 0, w, h);
   const px = imageData.data;
 
-  let minX = w, maxX = 0, minY = h, maxY = 0, hits = 0;
+  // Pass 1: find the dark top band — a horizontal run of >= 400 dark pixels
+  let topY = -1, topX = -1, topW = 0;
 
-  for (let y = 0; y < h; y += 2) {
-    for (let x = 0; x < w; x += 2) {
+  for (let y = 0; y < h && topY === -1; y++) {
+    let runStart = -1, runLen = 0;
+    for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
       const r = px[i], g = px[i+1], b = px[i+2];
-      if (isParchment(r, g, b) || isDarkBand(r, g, b)) {
-        hits++;
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
+      if (isDarkBand(r, g, b)) {
+        if (runStart === -1) runStart = x;
+        runLen++;
+      } else {
+        if (runLen >= 400) { topY = y; topX = runStart; topW = runLen; break; }
+        runStart = -1; runLen = 0;
       }
     }
+    if (runLen >= 400 && topY === -1) { topY = y; topX = runStart; topW = runLen; }
   }
 
-  const dw = maxX - minX;
-  const dh = maxY - minY;
-  console.log('[StarScout] pixel scan hits=' + hits + ' w=' + dw + ' h=' + dh);
+  console.log('[StarScout] dark band: topY=' + topY + ' topX=' + topX + ' topW=' + topW);
+  if (topY === -1) return null;
 
-  if (hits < 200 || dw < 150 || dh < 30) return null;
-  return { x: minX, y: minY, w: dw, h: dh };
+  // Pass 2: walk downward from topY measuring parchment body
+  let bodyMaxY = topY;
+  for (let y = topY + 1; y < h && y < topY + 200; y++) {
+    let rowHits = 0;
+    for (let x = topX; x < topX + topW && x < w; x += 4) {
+      const i = (y * w + x) * 4;
+      if (isParchment(px[i], px[i+1], px[i+2]) || isDarkBand(px[i], px[i+1], px[i+2])) rowHits++;
+    }
+    if (rowHits < 5) break;
+    bodyMaxY = y;
+  }
+
+  const dh = bodyMaxY - topY;
+  console.log('[StarScout] dialog: x=' + topX + ' y=' + topY + ' w=' + topW + ' h=' + dh);
+
+  if (topW < 400 || dh < 30) return null;
+  return { x: topX, y: topY, w: topW, h: dh };
 }
 // ── OCR the located dialog region (pixel fallback path) ──
 // Called when the text-first path failed and pixel scanning found a region.
