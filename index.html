@@ -1401,11 +1401,10 @@ function scanScreen() {
       // Step 1: locate RS window
       const rsX = alt1.rsX, rsY = alt1.rsY;
       const rsW = alt1.rsWidth, rsH = alt1.rsHeight;
-      const rsLinked = alt1.rsLinked;
 
-      console.log('[StarScout] rsLinked=' + rsLinked + ' w=' + rsW + ' h=' + rsH + ' permissionPixel=' + alt1.permissionPixel);
+      console.log('[StarScout] w=' + rsW + ' h=' + rsH + ' perm=' + alt1.permissionPixel);
 
-      if (!rsLinked || rsW <= 0 || rsH <= 0) {
+      if (!alt1.rsLinked || rsW <= 0 || rsH <= 0) {
         diagFail('RuneScape window not detected.\nMake sure RuneScape is open and Alt1 has found it.');
         return;
       }
@@ -1414,65 +1413,32 @@ function scanScreen() {
         return;
       }
 
-      // Step 2: capture the bottom half as BGRA base64
+      // Step 2: capture bottom half
       const cropY = Math.floor(rsH * 0.5);
       const cropH = rsH - cropY;
-
-      console.log('[StarScout] getRegion(0, ' + cropY + ', ' + rsW + ', ' + cropH + ')');
-      scanText.textContent = 'Step 2: Capturing pixels…';
-
-      const b64 = alt1.getRegion(0, cropY, rsW, cropH);
+      const b64   = alt1.getRegion(0, cropY, rsW, cropH);
       if (!b64 || b64.length === 0) {
-        diagFail('getRegion returned empty. Enable "View screen" permission (app spanner).');
+        diagFail('getRegion returned empty. Enable "View screen" permission.');
         return;
       }
-
       const raw = atob(b64);
-      console.log('[StarScout] decoded ' + raw.length + ' bytes (' + rsW + 'x' + cropH + ' BGRA)');
 
-      // Step 3: find the dialog using the boxtl golden anchor row.
-      //
-      // From skillbert's alt1/dialog source (src/dialog/index.ts):
-      //   - Uses findSubimage(imgs.boxtl) to locate the dialog top-left corner
-      //   - boxtl is 16x32px with a very distinctive bottom edge:
-      //       row 29 (from top): RGB(29,27,23)  - near-black strip
-      //       row 30:            RGB(77,61,38)  - GOLDEN/AMBER <- unique anchor
-      //       row 31:            RGB(59,46,27)  - dark brown
-      //   - Verifies boxtr exists at boxtl.x + 492
-      //   - Sets dialog pos: x=box.x+1, y=box.y+1, width=506, height=130
-      //
-      // We scan for the golden row RGB(77,61,38) which appears ONLY at the
-      // bottom edge of the dialog frame. r-b=39 makes it highly distinctive.
-
-      scanText.textContent = 'Step 3: Locating dialog frame…';
-
-      function getBGRA(x, y) {
-        const i = (y * rsW + x) * 4;
-        // getRegion returns BGRA bytes
-        return {
-          b: raw.charCodeAt(i + 0),
-          g: raw.charCodeAt(i + 1),
-          r: raw.charCodeAt(i + 2),
-          a: raw.charCodeAt(i + 3)
-        };
+      // Step 3: find dialog via golden anchor row (boxtl row 30 = RGB 77,61,38)
+      // This is the bottom edge of skillbert's boxtl corner image — unique to the dialog frame.
+      function getByte(x, y, ch) { // ch: 0=B,1=G,2=R,3=A in BGRA
+        return raw.charCodeAt((y * rsW + x) * 4 + ch);
+      }
+      function isGolden(x, y) {
+        return Math.abs(getByte(x,y,2) - 77) <= 12   // R
+            && Math.abs(getByte(x,y,1) - 61) <= 12   // G
+            && Math.abs(getByte(x,y,0) - 38) <= 10;  // B
       }
 
-      function isGoldenAnchor(r, g, b) {
-        // boxtl row 30: RGB(77,61,38) - very specific amber color
-        return Math.abs(r - 77) <= 12
-            && Math.abs(g - 61) <= 12
-            && Math.abs(b - 38) <= 10;
-      }
-
-      // Scan for a horizontal run of golden pixels >= 400px
-      // (the full bottom edge of the dialog frame is 506px wide)
       let anchorY = -1, anchorX = -1, anchorW = 0;
-
       for (let y = 0; y < cropH && anchorY === -1; y++) {
         let runStart = -1, runLen = 0;
         for (let x = 0; x < rsW; x++) {
-          const px = getBGRA(x, y);
-          if (isGoldenAnchor(px.r, px.g, px.b)) {
+          if (isGolden(x, y)) {
             if (runStart === -1) runStart = x;
             runLen++;
           } else {
@@ -1483,112 +1449,123 @@ function scanScreen() {
         if (runLen >= 400 && anchorY === -1) { anchorY = y; anchorX = runStart; anchorW = runLen; }
       }
 
-      console.log('[StarScout] golden anchor: y=' + anchorY + ' x=' + anchorX + ' w=' + anchorW);
-
+      console.log('[StarScout] anchor: y=' + anchorY + ' x=' + anchorX + ' w=' + anchorW);
       if (anchorY === -1) {
-        diagFail(
-          'Dialog frame not found.\n\n' +
-          'Make sure the telescope dialog is fully visible on screen, then scan.\n\n' +
-          'Check Dev Console for [StarScout] logs.'
-        );
+        diagFail('Dialog frame not found.\nMake sure the telescope dialog is fully visible, then scan.');
         return;
       }
 
-      // Step 4: calculate dialog position from anchor.
-      //
-      // The golden row is boxtl row 30 (0-indexed), so boxtl top = anchorY - 30.
-      // From skillbert: dialog pos x = boxtl.x + 1, y = boxtl.y + 1
-      // Dialog is always width=506, height=130.
-      //
-      // Coordinates are in crop space. Add cropY to get RS-window-relative.
+      // Dialog position (skillbert: pos = {x: box.x+1, y: box.y+1, w:506, h:130})
+      // boxtl is 32px tall, golden row is row 30, so boxtl top = anchorY - 30
+      const dialogX = anchorX + 1;             // RS-window-relative
+      const dialogY = cropY + (anchorY - 30) + 1; // RS-window-relative
+      const DIALOG_W = 506, DIALOG_H = 130;
 
-      const boxtlTop = anchorY - 30;
-      const dialogX  = anchorX + 1;       // RS-window-relative x
-      const dialogY  = cropY + boxtlTop + 1; // RS-window-relative y
-      const DIALOG_W = 506;
-      const DIALOG_H = 130;
+      console.log('[StarScout] dialog: x=' + dialogX + ' y=' + dialogY);
+      scanText.textContent = 'Step 4: Dialog found. Reading text…';
 
-      console.log('[StarScout] dialog position: x=' + dialogX + ' y=' + dialogY + ' w=' + DIALOG_W + ' h=' + DIALOG_H);
-      scanText.textContent = 'Step 4: Dialog found at (' + dialogX + ',' + dialogY + '). Reading text…';
-
-      // Step 5: bind the exact dialog region and read text.
+      // Step 4: read the dialog text area via getRegion + black-pixel OCR.
       //
       // From skillbert's readDialog():
-      //   buf = imgref.toData(pos.x, pos.y+33, pos.width, 80)
-      //   Looks for black pixels (sum < 50) between x=200-300
-      //   Reads with OCR.readLine using fontmono2 (12pt) and color [0,0,0]
+      //   - Text region: pos.y+33 for 80px height
+      //   - Text is BLACK (RGB 0,0,0) on parchment background
+      //   - Scans for rows where ANY pixel in x=200-300 has channel sum < 50
+      //   - Those are text baseline rows
       //
-      // For our bindReadString approach, we bind just the text area:
-      //   y+33 to y+113 (80px of dialog body containing text lines)
-      // Text lines are spaced ~13-16px apart in the 12pt font.
+      // From console diagnostic: text is at y=49-59 and y=65-77 within the 80px region.
+      // We capture the text region and scan for black-pixel columns to extract characters.
 
       const textX = dialogX;
       const textY = dialogY + 33;
-      const textW = DIALOG_W;
-      const textH = 80;
+      const b64t  = alt1.getRegion(textX, textY, DIALOG_W, 80);
+      if (!b64t) { diagFail('Failed to capture text region.'); return; }
+      const rawt = atob(b64t);
 
-      console.log('[StarScout] bindRegion(' + textX + ', ' + textY + ', ' + textW + ', ' + textH + ')');
-
-      let imgId = -1;
-      try {
-        imgId = alt1.bindRegion(textX, textY, textW, textH);
-        console.log('[StarScout] bindRegion id=' + imgId);
-      } catch(e) {
-        console.error('[StarScout] bindRegion failed:', e.message);
-        diagFail('bindRegion failed: ' + e.message);
-        return;
+      function getTByte(x, y, ch) {
+        return rawt.charCodeAt((y * DIALOG_W + x) * 4 + ch);
+      }
+      function isBlack(x, y) {
+        return getTByte(x,y,2) + getTByte(x,y,1) + getTByte(x,y,0) < 50;
       }
 
-      if (imgId < 0) {
-        diagFail('bindRegion returned invalid id. Enable "View screen" permission.');
-        return;
-      }
-
-      // Scan every pixel row for text using 'chat' font
-      // Dialog text is black on parchment, 12pt font, lines ~13-16px apart
-      const seenText = new Set();
-      const allLines = [];
-
-      for (let y = 0; y < textH; y++) {
-        let line = '';
-        try { line = alt1.bindReadString(imgId, 'chat', 0, y) || ''; } catch(e) { continue; }
-        const t = line.trim();
-        if (t.length >= 3 && !seenText.has(t)) {
-          seenText.add(t);
-          allLines.push(t);
-          console.log('[StarScout] text y=' + y + ': ' + JSON.stringify(t));
-          if (allLines.length >= 10) break;
+      // Find text line bands — rows where black pixels appear in x=100-400
+      const textRows = [];
+      for (let y = 0; y < 80; y++) {
+        for (let x = 100; x < 400; x++) {
+          if (isBlack(x, y)) { textRows.push(y); break; }
         }
       }
 
-      console.log('[StarScout] lines found: ' + allLines.length + ' -> ' + JSON.stringify(allLines));
+      console.log('[StarScout] text rows with black pixels:', textRows);
 
-      if (allLines.length === 0) {
-        // bindReadString still not finding text - show what we found so user can enter manually
+      if (textRows.length === 0) {
         scanBtn.disabled = false;
         scanArea.className = 'scan-area error';
         scanText.innerHTML =
-          '<strong>Dialog located at (' + dialogX + ', ' + dialogY + ') — ' + DIALOG_W + '×' + DIALOG_H + 'px</strong><br><br>' +
-          'Frame found via golden anchor (y=' + (cropY + anchorY) + ' in RS window).<br><br>' +
-          'Alt1 bindReadString could not read the 12pt dialog font.<br>' +
+          '<strong>Dialog found at (' + dialogX + ', ' + dialogY + ')</strong><br><br>' +
+          'No black text pixels detected in text region.<br>' +
           'Please fill in the fields manually below.';
         setStatus('Dialog found — manual entry needed', 'err');
         return;
       }
 
-      const fullText = allLines.join(' ');
-      const lower = fullText.toLowerCase();
-      const isStarDlg = lower.includes('shooting star') || lower.includes('size')
-                     || lower.includes('land in') || lower.includes('minutes');
+      // Group rows into lines (gap > 4px = new line)
+      const lines = [];
+      let lineStart = textRows[0], lastRow = textRows[0];
+      for (let i = 1; i < textRows.length; i++) {
+        if (textRows[i] - lastRow > 4) {
+          lines.push({ start: lineStart, end: lastRow });
+          lineStart = textRows[i];
+        }
+        lastRow = textRows[i];
+      }
+      lines.push({ start: lineStart, end: lastRow });
 
-      console.log('[StarScout] fullText=' + JSON.stringify(fullText) + ' isStarDlg=' + isStarDlg);
+      console.log('[StarScout] text line bands:', JSON.stringify(lines));
 
-      if (!isStarDlg) {
-        diagFail('Text found but not the star dialog.\n\nRead: "' + fullText.substring(0, 150) + '"\n\nMake sure the telescope dialog is open, then scan.');
-        return;
+      // For each line, extract columns with black pixels to build character runs
+      // Then use bindReadString on the exact y coordinate of each line
+      // (binding the full dialog width, exact y)
+      const imgId = alt1.bindRegion(textX, textY, DIALOG_W, 80);
+      console.log('[StarScout] bindRegion id=' + imgId);
+
+      const readLines = [];
+      for (const line of lines) {
+        const midY = Math.floor((line.start + line.end) / 2);
+        // Try both y values around the midpoint
+        for (const ty of [line.start, midY, line.end, line.start-1, line.end+1]) {
+          if (ty < 0 || ty >= 80) continue;
+          let result = '';
+          try { result = alt1.bindReadString(imgId, 'chat', 0, ty) || ''; } catch(e) {}
+          if (result.trim().length >= 3) {
+            console.log('[StarScout] bindReadString y=' + ty + ': ' + JSON.stringify(result));
+            readLines.push(result.trim());
+            break;
+          }
+        }
       }
 
-      attemptParse(fullText, null);
+      console.log('[StarScout] readLines:', JSON.stringify(readLines));
+
+      if (readLines.length > 0) {
+        const fullText = readLines.join(' ');
+        const lower = fullText.toLowerCase();
+        if (lower.includes('shooting star') || lower.includes('size') || lower.includes('land in') || lower.includes('minutes')) {
+          attemptParse(fullText, null);
+          return;
+        }
+      }
+
+      // bindReadString still can't read it — show dialog found with line info
+      // so user at least knows it's working and just needs manual entry
+      scanBtn.disabled = false;
+      scanArea.className = 'scan-area error';
+      scanText.innerHTML =
+        '<strong>Dialog found at (' + dialogX + ', ' + dialogY + ')</strong><br><br>' +
+        'Text detected on ' + lines.length + ' line(s) at y=[' + lines.map(l=>l.start+'-'+l.end).join(', ') + '] ' +
+        'but font could not be decoded automatically.<br><br>' +
+        'Please fill in the fields manually below.';
+      setStatus('Dialog found — manual entry needed', 'err');
 
     } catch(err) {
       console.error('[StarScout] scanScreen error:', err);
