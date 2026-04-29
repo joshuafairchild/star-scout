@@ -1405,7 +1405,7 @@ function scanScreen() {
       const rsH      = alt1.rsHeight;
       const rsLinked = alt1.rsLinked;
 
-      console.log('[StarScout] rsLinked=' + rsLinked + ' x=' + rsX + ' y=' + rsY + ' w=' + rsW + ' h=' + rsH);
+      console.log('[StarScout] rsLinked=' + rsLinked + ' w=' + rsW + ' h=' + rsH);
       console.log('[StarScout] permissionPixels=' + alt1.permissionPixels + ' version=' + alt1.version);
 
       if (!rsLinked || rsW <= 0 || rsH <= 0) {
@@ -1413,117 +1413,94 @@ function scanScreen() {
         return;
       }
 
-      // Step 2: bind the bottom half of the RS window.
+      // Step 2: bind the bottom half using bindRegion.
       //
-      // Alt1 has two bind functions with DIFFERENT coordinate systems:
-      //   bindScreenRegion(x, y, w, h) — absolute SCREEN coordinates
-      //   bindRegion(x, y, w, h)       — coordinates RELATIVE to RS window top-left
-      //
-      // We try bindScreenRegion first (absolute), then bindRegion (relative).
-      // A valid bind returns an integer id >= 0.
+      // bindScreenRegion has been removed from Alt1 — only bindRegion exists.
+      // bindRegion(x, y, w, h) uses coordinates RELATIVE to the RS window top-left.
+      // So to capture the bottom half: x=0, y=cropY, w=rsW, h=cropH.
 
       const cropY = Math.floor(rsH * 0.5);
       const cropH = rsH - cropY;
 
-      // Absolute screen coords
-      const absX = rsX;
-      const absY = rsY + cropY;
+      console.log('[StarScout] bindRegion(0, ' + cropY + ', ' + rsW + ', ' + cropH + ')');
+      scanText.textContent = 'Step 2: Binding bottom half…';
 
-      // RS-window-relative coords
-      const relX = 0;
-      const relY = cropY;
-
-      console.log('[StarScout] trying bindScreenRegion(' + absX + ',' + absY + ',' + rsW + ',' + cropH + ')');
-
-      let imgId   = -1;
-      let method  = '';
-      let scanH   = cropH;
-
-      // Try bindScreenRegion with absolute coords
+      let imgId = -1;
       try {
-        const id = alt1.bindScreenRegion(absX, absY, rsW, cropH);
-        if (id !== null && id !== undefined && id >= 0) {
-          imgId = id; method = 'bindScreenRegion(abs bottom half)';
-        }
-      } catch(e) { console.log('[StarScout] bindScreenRegion(abs) failed: ' + e.message); }
-
-      // Fall back: bindRegion with RS-relative coords
-      if (imgId < 0) {
-        try {
-          const id = alt1.bindRegion(relX, relY, rsW, cropH);
-          if (id !== null && id !== undefined && id >= 0) {
-            imgId = id; method = 'bindRegion(rel bottom half)';
-          }
-        } catch(e) { console.log('[StarScout] bindRegion(rel) failed: ' + e.message); }
-      }
-
-      // Last resort: bind the entire RS window from 0,0
-      if (imgId < 0) {
-        try {
-          const id = alt1.bindRegion(0, 0, rsW, rsH);
-          if (id !== null && id !== undefined && id >= 0) {
-            imgId = id; method = 'bindRegion(full window)'; scanH = rsH;
-          }
-        } catch(e) { console.log('[StarScout] bindRegion(full) failed: ' + e.message); }
-      }
-
-      console.log('[StarScout] method=' + method + ' imgId=' + imgId);
-
-      if (imgId < 0) {
-        diagFail('"View screen" permission not active.\nRight-click the app spanner icon and enable "Screen pixels", then reload.');
+        imgId = alt1.bindRegion(0, cropY, rsW, cropH);
+        console.log('[StarScout] bindRegion id=' + imgId);
+      } catch(e) {
+        console.error('[StarScout] bindRegion failed:', e.message);
+        diagFail('"View screen" permission not active.\nRight-click the app spanner and enable "Screen pixels", then reload.');
         return;
       }
 
-      scanText.textContent = 'Step 2: Bound region (' + method + '). Reading text rows…';
+      if (imgId === null || imgId === undefined || imgId < 0) {
+        diagFail('"View screen" permission not active.\nRight-click the app spanner and enable "Screen pixels", then reload.');
+        return;
+      }
 
-      // Step 3: scan every line for text.
+      // Step 3: scan for text.
       //
-      // bindReadString(id, fontname, x, y) — x,y are LOCAL to the bound image.
-      // RS dialog text line height is ~13px.
-      // Valid fonts: 'chat', 'chatmono', 'xpcounter'
-      // We try all 3 at each row, and also try a few x offsets
-      // since the dialog may not start at x=0.
+      // bindReadString(id, fontname, x, y):
+      //   - x, y are LOCAL to the bound region (0,0 = top-left of our crop)
+      //   - fontname: 'chat' is the RS dialogue font
+      //   - 'chatmono' is for monospace chat text
+      //   - 'xpcounter' is for XP overlay numbers — NOT for dialog text
+      //
+      // The dialog text is centered, so we scan x=0 across the full width.
+      // bindReadString reads an entire line starting at (x,y), scanning rightward.
+      // Passing x=0 should catch left-aligned or centered text.
+      //
+      // Line height in RS dialogue is ~13px.
+
+      scanText.textContent = 'Step 3: Reading text rows…';
 
       const LINE_HEIGHT = 13;
-      const FONTS       = ['chat', 'chatmono', 'xpcounter'];
-      const X_OFFSETS   = [0, 50, 100, 150, 200, Math.floor(rsW * 0.25), Math.floor(rsW * 0.33)];
       const allLines    = [];
-      let   attempts    = 0;
 
-      for (let y = 0; y < scanH - LINE_HEIGHT; y += LINE_HEIGHT) {
-        let found = false;
-        for (const font of FONTS) {
-          for (const x of X_OFFSETS) {
-            let line = '';
-            try {
-              line = alt1.bindReadString(imgId, font, x, y) || '';
-            } catch(e) {
-              console.warn('[StarScout] bindReadString err y=' + y + ' font=' + font + ' x=' + x + ': ' + e.message);
-              continue;
-            }
-            attempts++;
-            if (line && line.trim().length > 1) {
-              console.log('[StarScout] HIT y=' + y + ' font=' + font + ' x=' + x + ': ' + JSON.stringify(line));
-              allLines.push(line.trim());
-              found = true;
-              break;
-            }
-          }
-          if (found) break;
+      for (let y = 0; y < cropH - LINE_HEIGHT; y += LINE_HEIGHT) {
+        // Only try 'chat' — 'xpcounter' produces garbage on dialog backgrounds
+        // and 'chatmono' is a fallback only if 'chat' finds nothing at all
+        let line = '';
+        try {
+          line = alt1.bindReadString(imgId, 'chat', 0, y) || '';
+        } catch(e) {
+          console.warn('[StarScout] bindReadString y=' + y + ' err: ' + e.message);
+          continue;
+        }
+        if (line && line.trim().length > 1) {
+          console.log('[StarScout] y=' + y + ' chat: ' + JSON.stringify(line));
+          allLines.push(line.trim());
         }
       }
 
-      console.log('[StarScout] attempts=' + attempts + ' linesFound=' + allLines.length);
-      console.log('[StarScout] lines:', JSON.stringify(allLines));
+      console.log('[StarScout] linesFound=' + allLines.length + ' lines=' + JSON.stringify(allLines));
+
+      // If chat font found nothing, try chatmono as a last resort
+      if (allLines.length === 0) {
+        console.log('[StarScout] chat found nothing, trying chatmono…');
+        for (let y = 0; y < cropH - LINE_HEIGHT; y += LINE_HEIGHT) {
+          let line = '';
+          try {
+            line = alt1.bindReadString(imgId, 'chatmono', 0, y) || '';
+          } catch(e) { continue; }
+          if (line && line.trim().length > 1) {
+            console.log('[StarScout] y=' + y + ' chatmono: ' + JSON.stringify(line));
+            allLines.push(line.trim());
+          }
+        }
+        console.log('[StarScout] chatmono linesFound=' + allLines.length);
+      }
 
       if (allLines.length === 0) {
         diagFail(
-          'No text found after ' + attempts + ' attempts using ' + method + '.\n\n' +
+          'No text found in the bottom half of the RS window.\n\n' +
           'Make sure:\n' +
-          '\u2022 The telescope dialog is open and fully visible\n' +
-          '\u2022 "View screen" permission is enabled\n' +
+          '\u2022 The telescope dialog is fully visible on screen\n' +
+          '\u2022 "View screen" permission is enabled (app spanner)\n' +
           '\u2022 RS is not minimised\n\n' +
-          'Check Dev Console (right-click spanner) for [StarScout] logs.'
+          'Check Dev Console for [StarScout] logs.'
         );
         return;
       }
@@ -1535,7 +1512,8 @@ function scanScreen() {
                      || lower.includes('land in')
                      || lower.includes('minutes');
 
-      console.log('[StarScout] fullText=' + JSON.stringify(fullText) + ' isStarDlg=' + isStarDlg);
+      console.log('[StarScout] fullText=' + JSON.stringify(fullText));
+      console.log('[StarScout] isStarDlg=' + isStarDlg);
 
       if (!isStarDlg) {
         diagFail(
