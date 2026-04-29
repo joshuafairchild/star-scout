@@ -1412,100 +1412,78 @@ function scanScreen() {
         return;
       }
 
-      // Step 2: bind the bottom half.
-      // bindRegion(x, y, w, h) uses RS-window-relative coords.
-      // Bottom half = y starts at 50% of rsH.
+      // Step 2: capture bottom half as raw pixels via getRegion.
+      //
+      // bindReadString only works for chat/xp fonts — NOT the RS interface/dialog font.
+      // getRegion returns raw BGRA pixel data we can render to a canvas,
+      // then send as an image to Claude vision API for OCR.
+      //
+      // getRegion(x, y, w, h) uses RS-window-relative coordinates.
 
       const cropY = Math.floor(rsH * 0.5);
       const cropH = rsH - cropY;
 
-      console.log('[StarScout] bindRegion(0, ' + cropY + ', ' + rsW + ', ' + cropH + ')');
+      console.log('[StarScout] getRegion(0, ' + cropY + ', ' + rsW + ', ' + cropH + ')');
+      scanText.textContent = 'Step 2: Capturing pixels…';
 
-      let imgId = -1;
+      let buf;
       try {
-        imgId = alt1.bindRegion(0, cropY, rsW, cropH);
+        buf = alt1.getRegion(0, cropY, rsW, cropH);
       } catch(e) {
-        diagFail('bindRegion failed: ' + e.message + '\nEnable "View screen" permission (app spanner).');
+        diagFail('getRegion failed: ' + e.message + '\nEnable "View screen" permission (app spanner).');
         return;
       }
 
-      console.log('[StarScout] bindRegion id=' + imgId);
-
-      if (imgId === null || imgId === undefined || imgId < 0) {
-        diagFail('bindRegion returned invalid id.\nEnable "View screen" permission (app spanner).');
+      if (!buf || buf.length === 0) {
+        diagFail('getRegion returned empty buffer.\nEnable "View screen" permission (app spanner).');
         return;
       }
 
-      // Step 3: scan every single pixel row.
+      // Verify we got real pixels (not all zeros)
+      let nonZero = 0;
+      for (let i = 0; i < Math.min(buf.length, 2000); i++) {
+        if (buf[i] !== 0) nonZero++;
+      }
+      console.log('[StarScout] buf.length=' + buf.length + ' nonZero(2k)=' + nonZero);
+
+      if (nonZero === 0) {
+        diagFail('Pixel data is all zeros.\nIn Alt1 Settings > Capture: try switching between OpenGL and Desktop capture mode, then reload.');
+        return;
+      }
+
+      // Step 3: render pixels to a canvas as PNG, send to Claude vision for OCR.
       //
-      // bindReadString reads a text line whose BASELINE is at y.
-      // With 13px steps we almost certainly miss every baseline.
-      // Scan y=0..cropH one pixel at a time — only takes ~1ms per call
-      // since Alt1 returns empty instantly when no text is found.
-      // Stop as soon as we have enough lines to parse.
+      // getRegion returns Int32Array in BGRA byte order.
+      // We convert to RGBA for canvas ImageData.
 
-      scanText.textContent = 'Step 3: Scanning rows (1px step)…';
+      scanText.textContent = 'Step 3: Rendering to canvas…';
 
-      const allLines = [];
-      const seenText = new Set();
+      const canvas = document.createElement('canvas');
+      canvas.width  = rsW;
+      canvas.height = cropH;
+      const ctx = canvas.getContext('2d');
+      const imgData = ctx.createImageData(rsW, cropH);
+      const src = imgData.data;
 
-      for (let y = 0; y < cropH; y++) {
-        for (const font of ['chat', 'chatmono']) {
-          let line = '';
-          try {
-            line = alt1.bindReadString(imgId, font, 0, y) || '';
-          } catch(e) { continue; }
-
-          const trimmed = line.trim();
-          // Skip empty, single chars, and duplicates (same text found at adjacent y values)
-          if (trimmed.length < 3) continue;
-          if (seenText.has(trimmed)) continue;
-
-          console.log('[StarScout] y=' + y + ' font=' + font + ': ' + JSON.stringify(trimmed));
-          seenText.add(trimmed);
-          allLines.push(trimmed);
-
-          // Once we have enough text to parse, stop scanning
-          if (allLines.length >= 8) break;
-        }
-        if (allLines.length >= 8) break;
+      for (let i = 0; i < rsW * cropH; i++) {
+        const px = buf[i] >>> 0;
+        src[i*4+0] = (px >> 16) & 0xff; // R (from BGRA: byte2)
+        src[i*4+1] = (px >>  8) & 0xff; // G (from BGRA: byte1)
+        src[i*4+2] =  px        & 0xff; // B (from BGRA: byte0)
+        src[i*4+3] = 255;
       }
 
-      console.log('[StarScout] linesFound=' + allLines.length + ' lines=' + JSON.stringify(allLines));
+      ctx.putImageData(imgData, 0, 0);
 
-      if (allLines.length === 0) {
-        diagFail(
-          'No text found scanning all ' + cropH + ' rows of the bottom half.\n\n' +
-          'Make sure:\n' +
-          '\u2022 The telescope dialog is fully visible on screen\n' +
-          '\u2022 "View screen" permission is enabled (app spanner)\n' +
-          '\u2022 RS is not minimised\n\n' +
-          'Check Dev Console for [StarScout] logs.'
-        );
-        return;
-      }
+      // Convert canvas to base64 PNG
+      const dataUrl  = canvas.toDataURL('image/png');
+      const base64   = dataUrl.split(',')[1];
 
-      const fullText  = allLines.join(' ');
-      const lower     = fullText.toLowerCase();
-      const isStarDlg = lower.includes('shooting star')
-                     || lower.includes('size')
-                     || lower.includes('land in')
-                     || lower.includes('minutes');
+      console.log('[StarScout] PNG base64 length=' + base64.length);
+      scanText.textContent = 'Step 4: Sending to Claude vision for OCR…';
 
-      console.log('[StarScout] fullText=' + JSON.stringify(fullText));
-      console.log('[StarScout] isStarDlg=' + isStarDlg);
-
-      if (!isStarDlg) {
-        // Show what we found — helps diagnose wrong font / wrong region
-        diagFail(
-          'Text found but not the star dialog.\n\n' +
-          'Read: "' + fullText.substring(0, 200) + '"\n\n' +
-          'Make sure the telescope dialog is open, then scan.'
-        );
-        return;
-      }
-
-      attemptParse(fullText, null);
+      // Step 4: call Claude API with the image
+      callClaudeVision(base64);
 
     } catch(err) {
       console.error('[StarScout] scanScreen error:', err);
@@ -1514,6 +1492,68 @@ function scanScreen() {
 
   }, 50);
 
+}
+
+async function callClaudeVision(base64Png) {
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: 'image/png', data: base64Png }
+            },
+            {
+              type: 'text',
+              text: 'This is a screenshot from the game RuneScape. If you can see a telescope or shooting star dialogue box, transcribe ALL the text in it exactly. If there is no such dialogue visible, reply with just the word NONE. Reply with only the transcribed text or NONE, nothing else.'
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    console.log('[StarScout] Claude vision response:', JSON.stringify(data));
+
+    if (!response.ok) {
+      diagFail('Claude API error: ' + (data.error && data.error.message ? data.error.message : JSON.stringify(data)));
+      return;
+    }
+
+    const text = data.content && data.content[0] && data.content[0].text
+      ? data.content[0].text.trim()
+      : '';
+
+    console.log('[StarScout] OCR text: ' + JSON.stringify(text));
+
+    if (!text || text === 'NONE') {
+      diagFail('No telescope dialog visible in the captured image.\nMake sure the dialog is fully open and visible, then scan.');
+      return;
+    }
+
+    const lower = text.toLowerCase();
+    const isStarDlg = lower.includes('shooting star')
+                   || lower.includes('size')
+                   || lower.includes('land in')
+                   || lower.includes('minutes');
+
+    if (!isStarDlg) {
+      diagFail('Claude read text but it\'s not the star dialog.\n\nRead: "' + text.substring(0, 150) + '"');
+      return;
+    }
+
+    attemptParse(text, null);
+
+  } catch(err) {
+    console.error('[StarScout] callClaudeVision error:', err);
+    diagFail('Vision API error: ' + (err.message || String(err)));
+  }
 }
 // ── OCR the located dialog region (pixel fallback path) ──
 // Called when the text-first path failed and pixel scanning found a region.
