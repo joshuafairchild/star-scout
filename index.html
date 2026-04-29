@@ -1386,19 +1386,153 @@ function findDialogBounds(imgData, cropOffsetX, cropOffsetY) {
 
 // ── Main scan entry point ──
 
+// ── Embedded 12pt dialog font (extracted from skillbert/alt1 src/dialog/imgs) ──
+const FONT_12PT = {"basey":9,"spacewidth":3,"height":13,"chars":[{"c":"a","w":7,"p":[[2,3],[3,3],[4,3],[4,4],[5,4],[5,5],[1,6],[2,6],[3,6],[4,6],[5,6],[1,7],[2,7],[4,7],[5,7],[1,8],[2,8],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"b","w":8,"p":[[1,0],[1,1],[1,2],[1,3],[2,3],[3,3],[4,3],[5,3],[1,4],[2,4],[4,4],[5,4],[6,4],[1,5],[2,5],[6,5],[1,6],[6,6],[1,7],[2,7],[6,7],[1,8],[2,8],[5,8],[6,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"c","w":6,"p":[[2,3],[3,3],[4,3],[1,4],[2,4],[4,4],[5,4],[1,5],[1,6],[1,7],[2,7],[1,8],[2,8],[2,9],[3,9],[4,9]],"s":false},{"c":"d","w":8,"p":[[6,0],[6,1],[6,2],[2,3],[3,3],[4,3],[5,3],[6,3],[1,4],[2,4],[4,4],[5,4],[6,4],[1,5],[6,5],[1,6],[6,6],[1,7],[2,7],[6,7],[1,8],[2,8],[5,8],[6,8],[2,9],[3,9],[4,9],[5,9],[6,9]],"s":false},{"c":"e","w":7,"p":[[2,3],[3,3],[4,3],[1,4],[2,4],[4,4],[5,4],[1,5],[5,5],[1,6],[2,6],[3,6],[4,6],[5,6],[1,7],[2,7],[1,8],[2,8],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"f","w":4,"p":[[1,0],[2,0],[3,0],[1,1],[1,2],[0,3],[1,3],[2,3],[3,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9]],"s":false},{"c":"g","w":8,"p":[[2,3],[3,3],[4,3],[5,3],[6,3],[1,4],[2,4],[4,4],[5,4],[6,4],[1,5],[6,5],[1,6],[6,6],[1,7],[2,7],[6,7],[1,8],[2,8],[5,8],[6,8],[2,9],[3,9],[4,9],[5,9],[6,9],[5,10],[6,10],[5,11],[6,11],[1,12],[2,12],[3,12],[4,12],[5,12]],"s":false},{"c":"h","w":7,"p":[[1,0],[1,1],[1,2],[1,3],[2,3],[3,3],[4,3],[1,4],[2,4],[4,4],[5,4],[1,5],[2,5],[5,5],[1,6],[5,6],[1,7],[5,7],[1,8],[5,8],[1,9],[5,9]],"s":false},{"c":"i","w":3,"p":[[1,0],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9]],"s":true},{"c":"j","w":3,"p":[[1,0],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9],[1,10],[1,11],[0,12],[1,12]],"s":false},{"c":"k","w":6,"p":[[1,0],[1,1],[1,2],[1,3],[4,3],[5,3],[1,4],[3,4],[4,4],[1,5],[2,5],[3,5],[1,6],[2,6],[3,6],[1,7],[2,7],[3,7],[4,7],[1,8],[4,8],[1,9],[4,9],[5,9]],"s":false},{"c":"l","w":3,"p":[[1,0],[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9]],"s":false},{"c":"m","w":11,"p":[[1,3],[2,3],[3,3],[4,3],[6,3],[7,3],[8,3],[1,4],[2,4],[4,4],[5,4],[6,4],[8,4],[9,4],[1,5],[2,5],[5,5],[6,5],[9,5],[1,6],[5,6],[9,6],[1,7],[5,7],[9,7],[1,8],[5,8],[9,8],[1,9],[5,9],[9,9]],"s":false},{"c":"n","w":7,"p":[[1,3],[2,3],[3,3],[4,3],[1,4],[2,4],[4,4],[5,4],[1,5],[2,5],[5,5],[1,6],[5,6],[1,7],[5,7],[1,8],[5,8],[1,9],[5,9]],"s":false},{"c":"o","w":8,"p":[[2,3],[3,3],[4,3],[5,3],[1,4],[2,4],[4,4],[5,4],[6,4],[1,5],[6,5],[1,6],[6,6],[1,7],[2,7],[6,7],[1,8],[2,8],[5,8],[6,8],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"p","w":8,"p":[[1,3],[2,3],[3,3],[4,3],[5,3],[1,4],[2,4],[4,4],[5,4],[6,4],[1,5],[2,5],[6,5],[1,6],[6,6],[1,7],[2,7],[6,7],[1,8],[2,8],[5,8],[6,8],[1,9],[2,9],[3,9],[4,9],[5,9],[1,10],[1,11],[1,12]],"s":false},{"c":"q","w":8,"p":[[2,3],[3,3],[4,3],[5,3],[6,3],[1,4],[2,4],[4,4],[5,4],[6,4],[1,5],[6,5],[1,6],[6,6],[1,7],[2,7],[6,7],[1,8],[2,8],[5,8],[6,8],[2,9],[3,9],[4,9],[5,9],[6,9],[5,10],[6,10],[6,11],[6,12]],"s":false},{"c":"r","w":5,"p":[[1,3],[2,3],[3,3],[4,3],[1,4],[2,4],[1,5],[2,5],[1,6],[1,7],[1,8],[1,9]],"s":false},{"c":"s","w":7,"p":[[1,3],[2,3],[3,3],[4,3],[5,3],[1,4],[4,4],[5,4],[1,5],[2,5],[2,6],[3,6],[4,6],[4,7],[5,7],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"t","w":4,"p":[[1,1],[1,2],[0,3],[1,3],[2,3],[3,3],[1,4],[1,5],[1,6],[1,7],[1,8],[2,8],[1,9],[2,9],[3,9]],"s":false},{"c":"u","w":7,"p":[[1,3],[5,3],[1,4],[5,4],[1,5],[5,5],[1,6],[5,6],[1,7],[5,7],[1,8],[2,8],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"v","w":6,"p":[[0,3],[5,3],[0,4],[1,4],[4,4],[5,4],[1,5],[4,5],[5,5],[1,6],[2,6],[4,6],[1,7],[2,7],[3,7],[4,7],[2,8],[3,8],[4,8],[2,9],[3,9]],"s":false},{"c":"w","w":9,"p":[[0,3],[1,3],[4,3],[5,3],[8,3],[0,4],[1,4],[4,4],[5,4],[8,4],[1,5],[3,5],[4,5],[5,5],[7,5],[8,5],[1,6],[3,6],[5,6],[6,6],[7,6],[8,6],[1,7],[2,7],[3,7],[5,7],[6,7],[7,7],[8,7],[1,8],[2,8],[3,8],[6,8],[7,8],[2,9],[3,9],[6,9],[7,9]],"s":false},{"c":"x","w":6,"p":[[0,3],[1,3],[4,3],[5,3],[1,4],[2,4],[4,4],[2,5],[3,5],[4,5],[2,6],[3,6],[2,7],[3,7],[4,7],[1,8],[2,8],[3,8],[4,8],[0,9],[1,9],[4,9],[5,9]],"s":false},{"c":"y","w":6,"p":[[0,3],[1,3],[5,3],[0,4],[1,4],[4,4],[5,4],[1,5],[4,5],[5,5],[1,6],[2,6],[4,6],[1,7],[2,7],[3,7],[4,7],[2,8],[3,8],[4,8],[2,9],[3,9],[2,10],[3,10],[2,11],[0,12],[1,12],[2,12]],"s":false},{"c":"z","w":6,"p":[[1,3],[2,3],[3,3],[4,3],[5,3],[3,4],[4,4],[5,4],[3,5],[4,5],[3,6],[2,7],[1,8],[2,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"A","w":8,"p":[[3,1],[4,1],[3,2],[4,2],[2,3],[3,3],[4,3],[5,3],[2,4],[4,4],[5,4],[1,5],[2,5],[5,5],[1,6],[2,6],[3,6],[4,6],[5,6],[6,6],[1,7],[3,7],[4,7],[5,7],[6,7],[0,8],[1,8],[6,8],[0,9],[1,9],[6,9],[7,9]],"s":false},{"c":"B","w":8,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[1,2],[4,2],[5,2],[6,2],[1,3],[6,3],[1,4],[5,4],[6,4],[1,5],[2,5],[3,5],[4,5],[5,5],[1,6],[4,6],[5,6],[6,6],[1,7],[6,7],[1,8],[5,8],[6,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"C","w":8,"p":[[3,1],[4,1],[5,1],[6,1],[2,2],[3,2],[5,2],[6,2],[1,3],[2,3],[1,4],[1,5],[1,6],[2,6],[1,7],[2,7],[1,8],[2,8],[3,8],[2,9],[3,9],[4,9],[5,9],[6,9]],"s":false},{"c":"D","w":9,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[1,2],[4,2],[5,2],[6,2],[1,3],[6,3],[7,3],[1,4],[7,4],[1,5],[7,5],[1,6],[7,6],[1,7],[6,7],[7,7],[1,8],[5,8],[6,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"E","w":6,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[1,2],[1,3],[1,4],[1,5],[2,5],[3,5],[4,5],[5,5],[1,6],[1,7],[1,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"F","w":6,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[1,2],[1,3],[1,4],[1,5],[2,5],[3,5],[4,5],[5,5],[1,6],[1,7],[1,8],[1,9]],"s":false},{"c":"G","w":9,"p":[[3,1],[4,1],[5,1],[6,1],[7,1],[2,2],[3,2],[6,2],[7,2],[1,3],[2,3],[1,4],[1,5],[5,5],[6,5],[7,5],[1,6],[2,6],[6,6],[7,6],[1,7],[2,7],[7,7],[2,8],[3,8],[7,8],[2,9],[3,9],[4,9],[5,9],[6,9],[7,9]],"s":false},{"c":"H","w":8,"p":[[1,1],[6,1],[1,2],[6,2],[1,3],[6,3],[1,4],[6,4],[1,5],[2,5],[3,5],[4,5],[5,5],[6,5],[1,6],[5,6],[6,6],[1,7],[6,7],[1,8],[6,8],[1,9],[6,9]],"s":false},{"c":"I","w":4,"p":[[1,1],[2,1],[3,1],[2,2],[2,3],[2,4],[2,5],[2,6],[2,7],[2,8],[1,9],[2,9],[3,9]],"s":false},{"c":"J","w":3,"p":[[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9],[1,10],[0,11],[1,11],[0,12]],"s":false},{"c":"K","w":7,"p":[[1,1],[5,1],[6,1],[1,2],[4,2],[5,2],[1,3],[3,3],[4,3],[1,4],[2,4],[3,4],[1,5],[2,5],[3,5],[4,5],[1,6],[2,6],[3,6],[4,6],[1,7],[4,7],[5,7],[1,8],[5,8],[1,9],[5,9],[6,9]],"s":false},{"c":"L","w":6,"p":[[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[2,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"M","w":10,"p":[[1,1],[2,1],[7,1],[8,1],[1,2],[2,2],[7,2],[8,2],[1,3],[2,3],[3,3],[6,3],[7,3],[8,3],[1,4],[2,4],[3,4],[6,4],[7,4],[8,4],[1,5],[3,5],[6,5],[7,5],[8,5],[1,6],[3,6],[4,6],[5,6],[6,6],[7,6],[8,6],[1,7],[3,7],[4,7],[5,7],[8,7],[1,8],[4,8],[5,8],[8,8],[1,9],[4,9],[5,9],[8,9]],"s":false},{"c":"N","w":9,"p":[[1,1],[2,1],[7,1],[1,2],[2,2],[3,2],[7,2],[1,3],[2,3],[3,3],[7,3],[1,4],[3,4],[4,4],[7,4],[1,5],[4,5],[7,5],[1,6],[4,6],[5,6],[7,6],[1,7],[5,7],[6,7],[7,7],[1,8],[5,8],[6,8],[7,8],[1,9],[6,9],[7,9]],"s":false},{"c":"O","w":10,"p":[[2,1],[3,1],[4,1],[5,1],[6,1],[1,2],[2,2],[3,2],[5,2],[6,2],[7,2],[1,3],[2,3],[7,3],[8,3],[1,4],[8,4],[1,5],[8,5],[1,6],[2,6],[8,6],[1,7],[2,7],[7,7],[8,7],[1,8],[2,8],[3,8],[6,8],[7,8],[2,9],[3,9],[4,9],[5,9],[6,9]],"s":false},{"c":"P","w":7,"p":[[1,1],[2,1],[3,1],[4,1],[1,2],[4,2],[5,2],[1,3],[5,3],[1,4],[4,4],[5,4],[1,5],[2,5],[3,5],[4,5],[1,6],[1,7],[1,8],[1,9]],"s":false},{"c":"Q","w":10,"p":[[2,1],[3,1],[4,1],[5,1],[6,1],[1,2],[2,2],[3,2],[5,2],[6,2],[7,2],[1,3],[2,3],[7,3],[8,3],[1,4],[8,4],[1,5],[8,5],[1,6],[2,6],[8,6],[1,7],[2,7],[7,7],[8,7],[1,8],[2,8],[3,8],[6,8],[7,8],[2,9],[3,9],[4,9],[5,9],[6,9],[5,10],[6,10],[7,10],[6,11],[7,11]],"s":false},{"c":"R","w":7,"p":[[1,1],[2,1],[3,1],[4,1],[1,2],[4,2],[5,2],[1,3],[5,3],[1,4],[4,4],[5,4],[1,5],[2,5],[3,5],[4,5],[1,6],[3,6],[4,6],[1,7],[4,7],[5,7],[1,8],[4,8],[5,8],[1,9],[5,9],[6,9]],"s":false},{"c":"S","w":7,"p":[[2,1],[3,1],[4,1],[5,1],[1,2],[2,2],[4,2],[5,2],[1,3],[2,3],[1,4],[2,4],[2,5],[3,5],[4,5],[4,6],[5,6],[5,7],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9]],"s":false},{"c":"T","w":8,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[3,2],[4,2],[4,3],[4,4],[4,5],[4,6],[4,7],[4,8],[4,9]],"s":false},{"c":"U","w":9,"p":[[1,1],[7,1],[1,2],[7,2],[1,3],[7,3],[1,4],[7,4],[1,5],[7,5],[1,6],[7,6],[1,7],[2,7],[7,7],[1,8],[2,8],[6,8],[7,8],[2,9],[3,9],[4,9],[5,9],[6,9]],"s":false},{"c":"V","w":7,"p":[[0,1],[6,1],[0,2],[1,2],[5,2],[6,2],[1,3],[5,3],[6,3],[1,4],[2,4],[5,4],[1,5],[2,5],[4,5],[5,5],[2,6],[4,6],[5,6],[2,7],[3,7],[4,7],[2,8],[3,8],[4,8],[3,9],[4,9]],"s":false},{"c":"W","w":11,"p":[[0,1],[1,1],[5,1],[10,1],[0,2],[1,2],[4,2],[5,2],[6,2],[9,2],[10,2],[1,3],[4,3],[5,3],[6,3],[9,3],[10,3],[1,4],[2,4],[4,4],[6,4],[7,4],[9,4],[10,4],[1,5],[2,5],[4,5],[6,5],[7,5],[9,5],[1,6],[2,6],[3,6],[4,6],[6,6],[7,6],[8,6],[9,6],[2,7],[3,7],[4,7],[7,7],[8,7],[9,7],[2,8],[3,8],[7,8],[8,8],[2,9],[3,9],[7,9],[8,9]],"s":false},{"c":"X","w":7,"p":[[0,1],[1,1],[5,1],[6,1],[1,2],[2,2],[5,2],[2,3],[4,3],[2,4],[3,4],[4,4],[3,5],[4,5],[2,6],[3,6],[4,6],[1,7],[2,7],[4,7],[5,7],[1,8],[5,8],[0,9],[1,9],[5,9],[6,9]],"s":false},{"c":"Y","w":7,"p":[[0,1],[1,1],[5,1],[6,1],[1,2],[5,2],[1,3],[2,3],[4,3],[5,3],[2,4],[4,4],[2,5],[3,5],[4,5],[3,6],[3,7],[3,8],[3,9]],"s":false},{"c":"Z","w":8,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[5,2],[6,2],[4,3],[5,3],[4,4],[5,4],[3,5],[4,5],[3,6],[2,7],[3,7],[1,8],[2,8],[1,9],[2,9],[3,9],[4,9],[5,9],[6,9]],"s":false},{"c":"0","w":7,"p":[[2,1],[3,1],[4,1],[1,2],[2,2],[4,2],[5,2],[1,3],[2,3],[4,3],[5,3],[1,4],[5,4],[1,5],[5,5],[1,6],[5,6],[1,7],[2,7],[4,7],[5,7],[1,8],[2,8],[4,8],[5,8],[2,9],[3,9],[4,9]],"s":false},{"c":"1","w":7,"p":[[2,1],[3,1],[1,2],[2,2],[3,2],[1,3],[2,3],[3,3],[3,4],[3,5],[3,6],[3,7],[3,8],[3,9]],"s":false},{"c":"2","w":7,"p":[[2,1],[3,1],[4,1],[1,2],[2,2],[4,2],[5,2],[5,3],[4,4],[5,4],[4,5],[5,5],[3,6],[4,6],[2,7],[3,7],[1,8],[2,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"3","w":7,"p":[[1,1],[2,1],[3,1],[4,1],[1,2],[4,2],[5,2],[5,3],[4,4],[5,4],[2,5],[3,5],[4,5],[4,6],[5,6],[5,7],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9]],"s":false},{"c":"4","w":7,"p":[[4,1],[5,1],[4,2],[5,2],[3,3],[4,3],[5,3],[2,4],[3,4],[4,4],[5,4],[2,5],[5,5],[1,6],[2,6],[5,6],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7],[2,8],[3,8],[4,8],[5,8],[6,8],[5,9]],"s":false},{"c":"5","w":7,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[1,2],[2,2],[1,3],[2,3],[1,4],[2,4],[3,4],[4,4],[3,5],[4,5],[5,5],[5,6],[5,7],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9]],"s":false},{"c":"6","w":7,"p":[[2,1],[3,1],[4,1],[1,2],[2,2],[1,3],[2,3],[1,4],[2,4],[3,4],[4,4],[1,5],[2,5],[4,5],[5,5],[1,6],[2,6],[5,6],[1,7],[2,7],[5,7],[1,8],[2,8],[4,8],[5,8],[2,9],[3,9],[4,9]],"s":false},{"c":"7","w":7,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[5,2],[6,2],[5,3],[6,3],[4,4],[5,4],[4,5],[5,5],[4,6],[3,7],[4,7],[3,8],[2,9],[3,9]],"s":false},{"c":"8","w":7,"p":[[1,1],[2,1],[3,1],[4,1],[1,2],[4,2],[5,2],[1,3],[2,3],[5,3],[1,4],[2,4],[3,4],[4,4],[5,4],[2,5],[3,5],[4,5],[1,6],[2,6],[4,6],[5,6],[1,7],[5,7],[1,8],[2,8],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9]],"s":false},{"c":"9","w":7,"p":[[2,1],[3,1],[4,1],[1,2],[2,2],[4,2],[5,2],[1,3],[5,3],[1,4],[2,4],[4,4],[5,4],[1,5],[2,5],[3,5],[4,5],[5,5],[4,6],[5,6],[4,7],[5,7],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9]],"s":false},{"c":"%","w":11,"p":[[1,2],[2,2],[3,2],[4,2],[7,2],[1,3],[3,3],[4,3],[6,3],[7,3],[1,4],[2,4],[3,4],[4,4],[5,4],[6,4],[1,5],[2,5],[3,5],[4,5],[5,5],[6,5],[7,5],[8,5],[4,6],[5,6],[6,6],[8,6],[9,6],[4,7],[5,7],[6,7],[9,7],[3,8],[4,8],[6,8],[7,8],[8,8],[9,8],[3,9],[6,9],[7,9],[8,9],[9,9]],"s":false},{"c":"/","w":5,"p":[[3,0],[4,0],[3,1],[3,2],[2,3],[3,3],[2,4],[3,4],[2,5],[2,6],[1,7],[2,7],[1,8],[2,8],[1,9],[1,10],[0,11],[1,11]],"s":false},{"c":"+","w":7,"p":[[3,3],[3,4],[3,5],[0,6],[1,6],[2,6],[3,6],[4,6],[5,6],[2,7],[3,7],[3,8]],"s":false},{"c":"?","w":6,"p":[[1,1],[2,1],[3,1],[3,2],[4,2],[4,3],[3,4],[4,4],[2,5],[3,5],[2,6],[2,8],[3,8],[2,9],[3,9]],"s":false},{"c":"!","w":5,"p":[[2,1],[2,2],[2,3],[2,4],[2,5],[2,6],[2,8],[2,9],[3,9]],"s":true},{"c":"@","w":11,"p":[[3,1],[4,1],[5,1],[6,1],[7,1],[2,2],[3,2],[6,2],[7,2],[8,2],[1,3],[2,3],[4,3],[5,3],[6,3],[7,3],[8,3],[9,3],[1,4],[2,4],[3,4],[4,4],[6,4],[7,4],[8,4],[9,4],[1,5],[2,5],[3,5],[7,5],[8,5],[9,5],[1,6],[2,6],[3,6],[7,6],[8,6],[9,6],[1,7],[2,7],[3,7],[4,7],[6,7],[7,7],[8,7],[9,7],[1,8],[2,8],[4,8],[5,8],[6,8],[7,8],[8,8],[2,9],[3,9],[3,10],[4,10],[5,10],[6,10],[7,10]],"s":false},{"c":"#","w":8,"p":[[3,2],[5,2],[2,3],[3,3],[5,3],[1,4],[2,4],[3,4],[4,4],[5,4],[6,4],[7,4],[2,5],[3,5],[4,5],[5,5],[2,6],[4,6],[5,6],[0,7],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7],[1,8],[2,8],[4,8],[5,8],[1,9],[2,9],[4,9]],"s":false},{"c":"$","w":7,"p":[[3,0],[2,1],[3,1],[4,1],[5,1],[1,2],[2,2],[3,2],[4,2],[5,2],[1,3],[2,3],[3,3],[1,4],[2,4],[3,4],[4,4],[2,5],[3,5],[4,5],[5,5],[3,6],[4,6],[5,6],[3,7],[4,7],[5,7],[1,8],[2,8],[3,8],[4,8],[2,9],[3,9],[3,10]],"s":false},{"c":"^","w":7,"p":[[3,1],[2,2],[3,2],[4,2],[2,3],[3,3],[4,3],[1,4],[2,4],[4,4],[5,4],[1,5],[4,5],[5,5],[0,6],[1,6],[5,6]],"s":false},{"c":"~","w":7,"p":[[1,5],[2,5],[3,5],[5,5],[1,6],[3,6],[4,6],[5,6]],"s":true},{"c":"&","w":9,"p":[[2,1],[3,1],[4,1],[5,1],[2,2],[4,2],[5,2],[2,3],[3,3],[4,3],[5,3],[2,4],[3,4],[4,4],[1,5],[2,5],[3,5],[4,5],[7,5],[8,5],[1,6],[4,6],[5,6],[7,6],[1,7],[5,7],[6,7],[7,7],[1,8],[2,8],[5,8],[6,8],[7,8],[2,9],[3,9],[4,9],[5,9],[7,9],[8,9]],"s":false},{"c":"*","w":7,"p":[[3,0],[3,1],[4,1],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[2,3],[3,3],[4,3],[2,4],[3,4],[4,4],[5,4],[2,5],[4,5],[5,5]],"s":false},{"c":"(","w":4,"p":[[2,0],[1,1],[2,1],[1,2],[2,2],[1,3],[2,3],[1,4],[1,5],[1,6],[1,7],[2,7],[1,8],[2,8],[1,9],[2,9],[2,10],[2,11],[3,11]],"s":false},{"c":")","w":5,"p":[[2,0],[2,1],[3,1],[2,2],[3,2],[2,3],[3,3],[3,4],[3,5],[3,6],[2,7],[3,7],[2,8],[3,8],[2,9],[3,9],[2,10],[1,11],[2,11]],"s":false},{"c":"_","w":5,"p":[[0,11],[1,11],[2,11],[3,11],[4,11]],"s":false},{"c":"-","w":4,"p":[[1,6],[2,6],[3,6]],"s":true},{"c":"=","w":7,"p":[[0,4],[1,4],[2,4],[3,4],[4,4],[5,4],[0,7],[1,7],[2,7],[3,7],[4,7],[5,7]],"s":false},{"c":"[","w":4,"p":[[1,0],[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9],[1,10],[1,11],[2,11]],"s":false},{"c":"]","w":4,"p":[[2,0],[2,1],[2,2],[2,3],[2,4],[2,5],[2,6],[2,7],[2,8],[2,9],[2,10],[0,11],[1,11],[2,11]],"s":false},{"c":"{","w":5,"p":[[2,0],[2,1],[2,2],[2,3],[1,4],[2,4],[0,5],[1,5],[1,6],[2,6],[2,7],[2,8],[2,9],[2,10],[3,10],[2,11],[3,11]],"s":false},{"c":"}","w":5,"p":[[1,0],[2,0],[2,1],[2,2],[2,3],[2,4],[3,4],[2,5],[3,5],[4,5],[2,6],[2,7],[2,8],[2,9],[2,10],[1,11],[2,11]],"s":false},{"c":":","w":4,"p":[[1,3],[2,3],[1,4],[2,4],[1,8],[2,8],[1,9],[2,9]],"s":true},{"c":";","w":4,"p":[[1,3],[2,3],[1,4],[2,4],[1,9],[1,10],[0,11],[1,11]],"s":true},{"c":"\"","w":6,"p":[[1,1],[2,1],[3,1],[4,1],[1,2],[2,2],[3,2],[4,2],[1,3],[2,3],[3,3],[4,3]],"s":true},{"c":"'","w":4,"p":[[1,1],[2,1],[1,2],[2,2],[1,3],[2,3]],"s":true},{"c":"<","w":7,"p":[[5,3],[6,3],[3,4],[4,4],[1,5],[2,5],[1,6],[2,6],[3,6],[3,7],[4,7],[5,7],[5,8],[6,8]],"s":false},{"c":">","w":7,"p":[[1,3],[2,3],[2,4],[3,4],[4,4],[4,5],[5,5],[4,6],[5,6],[6,6],[2,7],[3,7],[4,7],[1,8],[2,8]],"s":false},{"c":"\\","w":5,"p":[[1,0],[1,1],[2,1],[1,2],[2,2],[1,3],[2,3],[2,4],[2,5],[2,6],[3,6],[2,7],[3,7],[3,8],[3,9],[3,10],[4,10],[3,11],[4,11]],"s":false},{"c":".","w":3,"p":[[1,8],[1,9],[2,9]],"s":true},{"c":",","w":3,"p":[[1,9],[0,10],[1,10],[0,11],[1,11]],"s":true},{"c":"|","w":7,"p":[[3,0],[3,1],[3,2],[3,3],[3,4],[3,5],[3,6],[3,7],[3,8],[3,9],[3,10],[3,11]],"s":true}]};
+
+// ── Dialog OCR engine ──
+// Matches in-game black text against the 12pt font bitmaps.
+// Text is rendered as BLACK (R+G+B < threshold) on parchment background.
+// We segment by finding dark-pixel column runs, then score each candidate char.
+
+function readDialogText(raw, imgW, imgH) {
+  // raw: atob() of getRegion BGRA data for the 80px text region
+
+  function isTextPixel(x, y) {
+    if (x < 0 || x >= imgW || y < 0 || y >= imgH) return false;
+    const i = (y * imgW + x) * 4;
+    // BGRA order from getRegion
+    const r = raw.charCodeAt(i + 2);
+    const g = raw.charCodeAt(i + 1);
+    const b = raw.charCodeAt(i + 0);
+    return (r + g + b) < 80; // black text threshold
+  }
+
+  // Find rows that contain text pixels (black pixels in x=50..450)
+  const textRows = [];
+  for (let y = 0; y < imgH; y++) {
+    for (let x = 50; x < 450; x++) {
+      if (isTextPixel(x, y)) { textRows.push(y); break; }
+    }
+  }
+
+  if (textRows.length === 0) return null;
+
+  // Group into line bands (gap > 4px = new line)
+  const bands = [];
+  let bandStart = textRows[0], last = textRows[0];
+  for (let i = 1; i < textRows.length; i++) {
+    if (textRows[i] - last > 4) {
+      bands.push({ y1: bandStart, y2: last });
+      bandStart = textRows[i];
+    }
+    last = textRows[i];
+  }
+  bands.push({ y1: bandStart, y2: last });
+
+  console.log('[StarScout] OCR bands:', JSON.stringify(bands));
+
+  const lines = [];
+  const font  = FONT_12PT;
+
+  for (const band of bands) {
+    // The baseline within the band — basey=9 in font coords
+    // Text baseline = band.y2 - (font.height - font.basey) + font.basey
+    // Simplified: the char top aligns so that basey row lands at the text baseline
+    // Baseline row in image = band.y2 - (font.height - 1 - font.basey)
+    const baseline = band.y2;
+    const charTop  = baseline - font.basey; // y in image where font row 0 starts
+
+    // Scan columns left to right, find x where text starts
+    let x = 0;
+    // Find leftmost text column in this band
+    for (x = 0; x < imgW; x++) {
+      let hasText = false;
+      for (let dy = 0; dy < font.height; dy++) {
+        if (isTextPixel(x, charTop + dy)) { hasText = true; break; }
+      }
+      if (hasText) break;
+    }
+
+    let lineText = '';
+    let safetyLimit = 0;
+
+    while (x < imgW && safetyLimit++ < 80) {
+      // Check for gap (space)
+      let colHasText = false;
+      for (let dy = 0; dy < font.height; dy++) {
+        if (isTextPixel(x, charTop + dy)) { colHasText = true; break; }
+      }
+      if (!colHasText) {
+        // Count gap width
+        let gapLen = 0;
+        for (let gx = x; gx < Math.min(x + 20, imgW); gx++) {
+          let gHasText = false;
+          for (let dy = 0; dy < font.height; dy++) {
+            if (isTextPixel(gx, charTop + dy)) { gHasText = true; break; }
+          }
+          if (!gHasText) gapLen++; else break;
+        }
+        if (gapLen >= font.spacewidth + 1) lineText += ' ';
+        x += Math.max(1, gapLen);
+        if (gapLen > 20) break; // end of text
+        continue;
+      }
+
+      // Score each character at position x
+      let bestChar = null, bestScore = Infinity;
+
+      for (const charDef of font.chars) {
+        let score = 0;
+        let matched = 0;
+        let missed  = 0;
+
+        for (const [px, py] of charDef.p) {
+          const ix = x + px;
+          const iy = charTop + py;
+          if (isTextPixel(ix, iy)) matched++;
+          else missed++;
+        }
+
+        // Score: penalize for missed font pixels, reward for matched
+        // Secondary chars (,.') need higher match rate to win
+        const total = charDef.p.length;
+        if (total === 0) continue;
+        score = missed * 2 - matched + (charDef.s ? 20 : 0);
+
+        if (score < bestScore) {
+          bestScore = score;
+          bestChar  = charDef;
+        }
+      }
+
+      if (bestChar && bestScore < total * 1.5) {
+        lineText += bestChar.c;
+        x += bestChar.w + 1; // +1 for char spacing
+      } else {
+        x++; // skip unrecognized column
+      }
+    }
+
+    const trimmed = lineText.trim();
+    if (trimmed.length >= 2) lines.push(trimmed);
+    console.log('[StarScout] OCR line: ' + JSON.stringify(trimmed));
+  }
+
+  return lines.length > 0 ? lines.join(' ') : null;
+}
+
 function scanScreen() {
 
   if (typeof alt1 === 'undefined') { simulateScan(); return; }
 
   scanArea.className = 'scan-area scanning';
-  scanText.textContent = 'Step 1: Locating RS window…';
-  setStatus('Capturing…');
+  scanText.textContent = 'Step 1: Locating RS window\u2026';
+  setStatus('Capturing\u2026');
   scanBtn.disabled = true;
 
   setTimeout(() => {
     try {
 
-      // Step 1: locate RS window
       const rsX = alt1.rsX, rsY = alt1.rsY;
       const rsW = alt1.rsWidth, rsH = alt1.rsHeight;
 
@@ -1413,7 +1547,7 @@ function scanScreen() {
         return;
       }
 
-      // Step 2: capture bottom half
+      // Capture bottom half to find dialog anchor
       const cropY = Math.floor(rsH * 0.5);
       const cropH = rsH - cropY;
       const b64   = alt1.getRegion(0, cropY, rsW, cropH);
@@ -1423,15 +1557,12 @@ function scanScreen() {
       }
       const raw = atob(b64);
 
-      // Step 3: find dialog via golden anchor row (boxtl row 30 = RGB 77,61,38)
-      // This is the bottom edge of skillbert's boxtl corner image — unique to the dialog frame.
-      function getByte(x, y, ch) { // ch: 0=B,1=G,2=R,3=A in BGRA
-        return raw.charCodeAt((y * rsW + x) * 4 + ch);
-      }
+      // Find dialog via golden anchor row (boxtl row 30 = RGB 77,61,38)
       function isGolden(x, y) {
-        return Math.abs(getByte(x,y,2) - 77) <= 12   // R
-            && Math.abs(getByte(x,y,1) - 61) <= 12   // G
-            && Math.abs(getByte(x,y,0) - 38) <= 10;  // B
+        const i = (y * rsW + x) * 4;
+        return Math.abs(raw.charCodeAt(i+2) - 77) <= 12
+            && Math.abs(raw.charCodeAt(i+1) - 61) <= 12
+            && Math.abs(raw.charCodeAt(i+0) - 38) <= 10;
       }
 
       let anchorY = -1, anchorX = -1, anchorW = 0;
@@ -1449,123 +1580,51 @@ function scanScreen() {
         if (runLen >= 400 && anchorY === -1) { anchorY = y; anchorX = runStart; anchorW = runLen; }
       }
 
-      console.log('[StarScout] anchor: y=' + anchorY + ' x=' + anchorX + ' w=' + anchorW);
+      console.log('[StarScout] golden anchor: y=' + anchorY + ' x=' + anchorX + ' w=' + anchorW);
+
       if (anchorY === -1) {
         diagFail('Dialog frame not found.\nMake sure the telescope dialog is fully visible, then scan.');
         return;
       }
 
-      // Dialog position (skillbert: pos = {x: box.x+1, y: box.y+1, w:506, h:130})
-      // boxtl is 32px tall, golden row is row 30, so boxtl top = anchorY - 30
-      const dialogX = anchorX + 1;             // RS-window-relative
-      const dialogY = cropY + (anchorY - 30) + 1; // RS-window-relative
+      // Dialog position from skillbert: x=box.x+1, y=box.y+1, w=506, h=130
+      const dialogX = anchorX + 1;
+      const dialogY = cropY + (anchorY - 30) + 1;
       const DIALOG_W = 506, DIALOG_H = 130;
 
       console.log('[StarScout] dialog: x=' + dialogX + ' y=' + dialogY);
-      scanText.textContent = 'Step 4: Dialog found. Reading text…';
+      scanText.textContent = 'Step 4: Dialog found. Running OCR\u2026';
 
-      // Step 4: read the dialog text area via getRegion + black-pixel OCR.
-      //
-      // From skillbert's readDialog():
-      //   - Text region: pos.y+33 for 80px height
-      //   - Text is BLACK (RGB 0,0,0) on parchment background
-      //   - Scans for rows where ANY pixel in x=200-300 has channel sum < 50
-      //   - Those are text baseline rows
-      //
-      // From console diagnostic: text is at y=49-59 and y=65-77 within the 80px region.
-      // We capture the text region and scan for black-pixel columns to extract characters.
+      // Capture the text region: pos.y+33 for 80px (from skillbert readDialog)
+      const textY  = dialogY + 33;
+      const b64txt = alt1.getRegion(dialogX, textY, DIALOG_W, 80);
+      if (!b64txt) { diagFail('Failed to capture text region.'); return; }
+      const rawtxt = atob(b64txt);
 
-      const textX = dialogX;
-      const textY = dialogY + 33;
-      const b64t  = alt1.getRegion(textX, textY, DIALOG_W, 80);
-      if (!b64t) { diagFail('Failed to capture text region.'); return; }
-      const rawt = atob(b64t);
+      const ocrResult = readDialogText(rawtxt, DIALOG_W, 80);
+      console.log('[StarScout] OCR result: ' + JSON.stringify(ocrResult));
 
-      function getTByte(x, y, ch) {
-        return rawt.charCodeAt((y * DIALOG_W + x) * 4 + ch);
-      }
-      function isBlack(x, y) {
-        return getTByte(x,y,2) + getTByte(x,y,1) + getTByte(x,y,0) < 50;
-      }
-
-      // Find text line bands — rows where black pixels appear in x=100-400
-      const textRows = [];
-      for (let y = 0; y < 80; y++) {
-        for (let x = 100; x < 400; x++) {
-          if (isBlack(x, y)) { textRows.push(y); break; }
-        }
-      }
-
-      console.log('[StarScout] text rows with black pixels:', textRows);
-
-      if (textRows.length === 0) {
+      if (!ocrResult) {
         scanBtn.disabled = false;
         scanArea.className = 'scan-area error';
         scanText.innerHTML =
           '<strong>Dialog found at (' + dialogX + ', ' + dialogY + ')</strong><br><br>' +
-          'No black text pixels detected in text region.<br>' +
+          'No text detected in dialog region.<br>' +
           'Please fill in the fields manually below.';
-        setStatus('Dialog found — manual entry needed', 'err');
+        setStatus('Dialog found \u2014 manual entry needed', 'err');
         return;
       }
 
-      // Group rows into lines (gap > 4px = new line)
-      const lines = [];
-      let lineStart = textRows[0], lastRow = textRows[0];
-      for (let i = 1; i < textRows.length; i++) {
-        if (textRows[i] - lastRow > 4) {
-          lines.push({ start: lineStart, end: lastRow });
-          lineStart = textRows[i];
-        }
-        lastRow = textRows[i];
-      }
-      lines.push({ start: lineStart, end: lastRow });
+      const lower = ocrResult.toLowerCase();
+      const isStarDlg = lower.includes('shooting star') || lower.includes('size')
+                     || lower.includes('land in') || lower.includes('minutes');
 
-      console.log('[StarScout] text line bands:', JSON.stringify(lines));
-
-      // For each line, extract columns with black pixels to build character runs
-      // Then use bindReadString on the exact y coordinate of each line
-      // (binding the full dialog width, exact y)
-      const imgId = alt1.bindRegion(textX, textY, DIALOG_W, 80);
-      console.log('[StarScout] bindRegion id=' + imgId);
-
-      const readLines = [];
-      for (const line of lines) {
-        const midY = Math.floor((line.start + line.end) / 2);
-        // Try both y values around the midpoint
-        for (const ty of [line.start, midY, line.end, line.start-1, line.end+1]) {
-          if (ty < 0 || ty >= 80) continue;
-          let result = '';
-          try { result = alt1.bindReadString(imgId, 'chat', 0, ty) || ''; } catch(e) {}
-          if (result.trim().length >= 3) {
-            console.log('[StarScout] bindReadString y=' + ty + ': ' + JSON.stringify(result));
-            readLines.push(result.trim());
-            break;
-          }
-        }
+      if (!isStarDlg) {
+        diagFail('OCR read text but not the star dialog.\n\nRead: "' + ocrResult.substring(0,150) + '"\n\nMake sure the telescope dialog is open, then scan.');
+        return;
       }
 
-      console.log('[StarScout] readLines:', JSON.stringify(readLines));
-
-      if (readLines.length > 0) {
-        const fullText = readLines.join(' ');
-        const lower = fullText.toLowerCase();
-        if (lower.includes('shooting star') || lower.includes('size') || lower.includes('land in') || lower.includes('minutes')) {
-          attemptParse(fullText, null);
-          return;
-        }
-      }
-
-      // bindReadString still can't read it — show dialog found with line info
-      // so user at least knows it's working and just needs manual entry
-      scanBtn.disabled = false;
-      scanArea.className = 'scan-area error';
-      scanText.innerHTML =
-        '<strong>Dialog found at (' + dialogX + ', ' + dialogY + ')</strong><br><br>' +
-        'Text detected on ' + lines.length + ' line(s) at y=[' + lines.map(l=>l.start+'-'+l.end).join(', ') + '] ' +
-        'but font could not be decoded automatically.<br><br>' +
-        'Please fill in the fields manually below.';
-      setStatus('Dialog found — manual entry needed', 'err');
+      attemptParse(ocrResult, null);
 
     } catch(err) {
       console.error('[StarScout] scanScreen error:', err);
