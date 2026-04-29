@@ -1269,7 +1269,7 @@ return { data: out, width: w, height: h };
 
 // ── Dialog bounds detection ──
 //
-// Receives a pre-cropped ImageData covering only the bottom third of the
+// Receives a pre-cropped ImageData covering only the bottom half of the
 // RS client. Scans for the dark top-band of the dialog (the most distinct
 // horizontal feature), then measures parchment body below it, and checks
 // for the golden button in the lower portion.
@@ -1423,14 +1423,14 @@ function scanScreen() {
       // Capturing just this region is faster and avoids false positives from
       // warm-colored UI elements elsewhere (inventory, chat, skill guide, etc).
 
-      const cropY = Math.floor(rsH * 0.55);
+      const cropY = Math.floor(rsH * 0.5);
       const cropH = rsH - cropY;
       const absX  = rsX;
       const absY  = rsY + cropY;
 
       console.log(`[StarScout] Crop region: absX=${absX} absY=${absY} w=${rsW} h=${cropH}`);
 
-      scanText.textContent = `Step 2: RS window ${rsW}×${rsH}. Capturing bottom third…`;
+      scanText.textContent = `Step 2: RS window ${rsW}×${rsH}. Capturing bottom half…`;
 
       const buf = alt1.getRegion(absX, absY, rsW, cropH);
 
@@ -1485,7 +1485,7 @@ function scanScreen() {
         }
         console.log('[StarScout] crop mid-row samples (order 0):', samples.join(' '));
         diagFail(
-          `No dialog found in bottom third of RS window (${rsW}×${cropH}px).\n\n` +
+          `No dialog found in bottom half of RS window (${rsW}×${cropH}px).\n\n` +
           `Color samples: ${samples.slice(0, 5).join(' ')}\n\n` +
           `Make sure the telescope dialog is fully visible, then scan.\n` +
           `Check Dev Console for [StarScout] logs to help diagnose.`
