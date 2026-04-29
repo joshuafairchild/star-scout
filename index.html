@@ -1482,7 +1482,9 @@ function readDialogText(raw, imgW, imgH) {
       let bestChar = null, bestScore = Infinity;
 
       for (const charDef of font.chars) {
-        let score = 0;
+        const total = charDef.p.length;
+        if (total === 0) continue;
+
         let matched = 0;
         let missed  = 0;
 
@@ -1495,9 +1497,7 @@ function readDialogText(raw, imgW, imgH) {
 
         // Score: penalize for missed font pixels, reward for matched
         // Secondary chars (,.') need higher match rate to win
-        const total = charDef.p.length;
-        if (total === 0) continue;
-        score = missed * 2 - matched + (charDef.s ? 20 : 0);
+        const score = missed * 2 - matched + (charDef.s ? 20 : 0);
 
         if (score < bestScore) {
           bestScore = score;
@@ -1505,6 +1505,7 @@ function readDialogText(raw, imgW, imgH) {
         }
       }
 
+      const total = bestChar ? bestChar.p.length : 1;
       if (bestChar && bestScore < total * 1.5) {
         lineText += bestChar.c;
         x += bestChar.w + 1; // +1 for char spacing
