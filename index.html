@@ -1580,32 +1580,37 @@ function scanScreen() {
 
 // Canvas-based dialog detection.
 //
-// Pixel data confirmed:
-//   - Parchment body: x≈480-940, y≈160-255 in the bottom-half crop
-//   - Dark band: x≈480-950, y≈120-165
-//   - Text pixels inside dialog break naive horizontal walks
+// Confirmed pixel structure at midX=680 (crop coords):
+//   y=80-88:   parchment — BUT this is RS UI above the dialog, not dialog itself
+//   y=90-118:  transitional/grey — RS interface border
+//   y=120-152: DARK BAND — the solid dialog top frame (~32px tall)
+//   y=158-255: PARCHMENT — the actual dialog body
+//   y=260+:    non-parchment — below dialog
+//
+// Key insight: the real dialog parchment is always directly BELOW a dark band.
+// False parchment (RS UI bg) has NO dark band directly above it.
 //
 // Strategy:
-//   1. Scan columns for 50+ consecutive strict-parchment pixels
-//   2. Walk left/right using MAJORITY vote across multiple rows (not single row)
-//      to avoid text characters breaking the width measurement
-//   3. Walk up for dark band, down for bottom edge
+//   1. Find candidate parchment columns (50+ consecutive parchment pixels)
+//   2. For each candidate, walk UP to check if a dark band exists above it
+//   3. Only accept candidates where a dark band of >= 10px is found above
+//   4. Measure full width with 60px gap tolerance, full height
 
 function scanCanvasForDialog(ctx, w, h) {
   const imageData = ctx.getImageData(0, 0, w, h);
   const px = imageData.data;
 
-  function isParchmentStrict(r, g, b) {
+  function isParchment(r, g, b) {
     return r >= 165 && r <= 220
         && g >= 140 && g <= 200
         && b >= 105 && b <= 165
         && (r - b) >= 38;
   }
 
-  function isDarkStrict(r, g, b) {
+  function isDark(r, g, b) {
     return r >= 15 && r <= 65
         && g >= 12 && g <= 60
-        && b >= 8  && b <= 55
+        && b >=  8 && b <= 55
         && Math.abs(r - g) < 20
         && Math.abs(g - b) < 20;
   }
@@ -1615,60 +1620,78 @@ function scanCanvasForDialog(ctx, w, h) {
     return [px[i], px[i+1], px[i+2]];
   }
 
-  // Pass 1: scan every 5px column for 50+ consecutive parchment pixels
-  let parchX = -1, parchTopY = -1;
-  for (let x = 0; x < w && parchX === -1; x += 5) {
-    let runStart = -1, runLen = 0;
-    for (let y = 0; y < h; y++) {
-      const [r,g,b] = getPixel(x, y);
-      if (isParchmentStrict(r, g, b)) {
-        if (runStart === -1) runStart = y;
-        runLen++;
-        if (runLen >= 50) { parchX = x; parchTopY = runStart; break; }
-      } else {
-        runStart = -1; runLen = 0;
-      }
-    }
-  }
-
-  console.log('[StarScout] parchment column: x=' + parchX + ' topY=' + parchTopY);
-  if (parchX === -1) return null;
-
-  // Pass 2: find bottom of parchment by walking down from parchTopY
-  let parchBotY = parchTopY;
-  for (let y = parchTopY; y < h && y < parchTopY + 200; y++) {
-    const [r,g,b] = getPixel(parchX, y);
-    if (isParchmentStrict(r, g, b)) parchBotY = y;
-    else if (y - parchBotY > 8) break;
-  }
-
-  const parchH = parchBotY - parchTopY;
-  // Use a y value in the middle of the parchment body for horizontal walks
-  // to avoid the text rows near the top and button near the bottom
-  const midY = parchTopY + Math.floor(parchH * 0.4);
-
-  console.log('[StarScout] parchment col body: topY=' + parchTopY + ' botY=' + parchBotY + ' midY=' + midY);
-
-  // Pass 3: walk left/right using majority vote across 5 rows
-  // At each x position, sample 5 rows spaced 8px apart centred on midY.
-  // Count as "in dialog" if >= 3 of 5 rows are parchment.
-  // This tolerates text pixels that break single-row walks.
-
+  // Majority-vote column check — tolerates text pixels
   function isDialogColumn(x, centreY) {
     let hits = 0;
     for (let dy = -16; dy <= 16; dy += 8) {
       const y = centreY + dy;
       if (y < 0 || y >= h) continue;
       const [r,g,b] = getPixel(x, y);
-      if (isParchmentStrict(r, g, b)) hits++;
+      if (isParchment(r, g, b)) hits++;
     }
     return hits >= 3;
   }
 
-  // Gap tolerance of 60px — text characters inside the dialog create columns
-  // that fail isDialogColumn, so we need to skip past them without stopping.
-  // We track the last confirmed parchment column and stop only when we go
-  // 60px past it with no new hits.
+  // Scan every 5px column for 50+ consecutive parchment pixels
+  // Collect ALL candidates, not just the first one
+  const candidates = [];
+  for (let x = 0; x < w; x += 5) {
+    let runStart = -1, runLen = 0;
+    for (let y = 0; y < h; y++) {
+      const [r,g,b] = getPixel(x, y);
+      if (isParchment(r, g, b)) {
+        if (runStart === -1) runStart = y;
+        runLen++;
+        if (runLen >= 50) {
+          candidates.push({ x, topY: runStart });
+          break;
+        }
+      } else {
+        runStart = -1; runLen = 0;
+      }
+    }
+  }
+
+  console.log('[StarScout] parchment candidates: ' + candidates.length + ' first x=' + (candidates[0] && candidates[0].x));
+
+  // For each candidate, check if a dark band exists directly above the parchment
+  // The dark band must be >= 10px tall starting within 30px above parchTopY
+  let chosen = null;
+  for (const c of candidates) {
+    const { x, topY } = c;
+    let darkCount = 0;
+    let darkTopY   = topY;
+    for (let y = topY - 1; y >= 0 && y >= topY - 60; y--) {
+      const [r,g,b] = getPixel(x, y);
+      if (isDark(r, g, b)) { darkCount++; darkTopY = y; }
+      else if (darkCount > 0 && topY - y > darkCount + 5) break; // gap too big
+    }
+    console.log('[StarScout] candidate x=' + x + ' topY=' + topY + ' darkCount=' + darkCount + ' darkTopY=' + darkTopY);
+    if (darkCount >= 10) {
+      chosen = { x, parchTopY: topY, darkTopY };
+      break;
+    }
+  }
+
+  if (!chosen) {
+    console.log('[StarScout] no candidate with dark band above found');
+    return null;
+  }
+
+  const { x: parchX, parchTopY, darkTopY } = chosen;
+
+  // Find bottom of parchment
+  let parchBotY = parchTopY;
+  for (let y = parchTopY; y < h && y < parchTopY + 200; y++) {
+    const [r,g,b] = getPixel(parchX, y);
+    if (isParchment(r, g, b)) parchBotY = y;
+    else if (y - parchBotY > 8) break;
+  }
+
+  // Use middle of parchment body for width walk
+  const midY = parchTopY + Math.floor((parchBotY - parchTopY) * 0.4);
+
+  // Walk left/right with 60px gap tolerance
   let leftX = parchX, rightX = parchX;
   let lastHitL = parchX;
   for (let x = parchX; x >= 0; x--) {
@@ -1682,26 +1705,11 @@ function scanCanvasForDialog(ctx, w, h) {
   }
 
   const dialogW = rightX - leftX;
-  const midX = Math.floor((leftX + rightX) / 2);
-  console.log('[StarScout] width: leftX=' + leftX + ' rightX=' + rightX + ' w=' + dialogW);
-
-  if (dialogW < 150) {
-    console.log('[StarScout] dialog too narrow, rejecting');
-    return null;
-  }
-
-  // Pass 4: walk up from parchTopY to find top of dark band
-  let darkTopY = parchTopY;
-  for (let y = parchTopY - 1; y >= 0 && y >= parchTopY - 60; y--) {
-    const [r,g,b] = getPixel(midX, y);
-    if (isDarkStrict(r, g, b)) darkTopY = y;
-    else if (darkTopY !== parchTopY && parchTopY - y > 5) break;
-  }
-
   const dialogH = parchBotY - darkTopY;
+
   console.log('[StarScout] final: x=' + leftX + ' y=' + darkTopY + ' w=' + dialogW + ' h=' + dialogH);
 
-  if (dialogH < 50) return null;
+  if (dialogW < 150 || dialogH < 50) return null;
 
   return { x: leftX, y: darkTopY, w: dialogW, h: dialogH };
 }
