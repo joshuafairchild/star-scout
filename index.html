@@ -1398,155 +1398,204 @@ function scanScreen() {
   setTimeout(() => {
     try {
 
-      // ── Step 1: Locate the RS window via Alt1 ──
-      // alt1.rsX/rsY is the top-left screen position of the RS client.
-      // alt1.rsWidth/rsHeight is its size. Returns -1 if RS not detected.
+      // Step 1: locate RS window
+      const rsX      = alt1.rsX;
+      const rsY      = alt1.rsY;
+      const rsW      = alt1.rsWidth;
+      const rsH      = alt1.rsHeight;
+      const rsLinked = alt1.rsLinked;
 
-      const rsX = alt1.rsX;
-      const rsY = alt1.rsY;
-      const rsW = alt1.rsWidth;
-      const rsH = alt1.rsHeight;
+      console.log('[StarScout] rsLinked=' + rsLinked + ' x=' + rsX + ' y=' + rsY + ' w=' + rsW + ' h=' + rsH);
+      console.log('[StarScout] permissionPixels=' + alt1.permissionPixels + ' version=' + alt1.version);
 
-      console.log(`[StarScout] RS window: x=${rsX} y=${rsY} w=${rsW} h=${rsH}`);
-
-      if (rsW <= 0 || rsH <= 0) {
-        diagFail(
-          'RuneScape window not detected by Alt1.\n\n' +
-          'Make sure RuneScape is open and Alt1 has found it.\n' +
-          'Check the Alt1 toolbar — it should show the RS world number.'
-        );
+      if (!rsLinked || rsW <= 0 || rsH <= 0) {
+        diagFail('RuneScape window not detected by Alt1.\nMake sure RuneScape is open and Alt1 has found it.');
         return;
       }
 
-      // ── Step 2: Capture only the bottom ~45% of the RS client ──
-      // The telescope dialog always appears in the lower portion of the screen.
-      // Capturing just this region is faster and avoids false positives from
-      // warm-colored UI elements elsewhere (inventory, chat, skill guide, etc).
+      // Step 2: bind the bottom half of the RS window.
+      //
+      // Alt1 has two bind functions with DIFFERENT coordinate systems:
+      //   bindScreenRegion(x, y, w, h) — absolute SCREEN coordinates
+      //   bindRegion(x, y, w, h)       — coordinates RELATIVE to RS window top-left
+      //
+      // We try bindScreenRegion first (absolute), then bindRegion (relative).
+      // A valid bind returns an integer id >= 0.
 
       const cropY = Math.floor(rsH * 0.5);
       const cropH = rsH - cropY;
-      const absX  = rsX;
-      const absY  = rsY + cropY;
 
-      console.log(`[StarScout] Crop region: absX=${absX} absY=${absY} w=${rsW} h=${cropH}`);
+      // Absolute screen coords
+      const absX = rsX;
+      const absY = rsY + cropY;
 
-      scanText.textContent = `Step 2: RS window ${rsW}×${rsH}. Capturing bottom half…`;
+      // RS-window-relative coords
+      const relX = 0;
+      const relY = cropY;
 
-      const buf = alt1.getRegion(absX, absY, rsW, cropH);
+      console.log('[StarScout] trying bindScreenRegion(' + absX + ',' + absY + ',' + rsW + ',' + cropH + ')');
 
-      if (!buf || buf.length === 0) {
-        diagFail('"View screen" permission not active — right-click the app spanner icon and enable it.');
-        return;
-      }
+      let imgId   = -1;
+      let method  = '';
+      let scanH   = cropH;
 
-      let nonZero = 0;
-      for (let i = 0; i < Math.min(buf.length, 5000); i++) {
-        if (buf[i] !== 0) nonZero++;
-      }
-      console.log(`[StarScout] buf.length:${buf.length} nonZero(5k):${nonZero}`);
-
-      if (nonZero === 0) {
-        diagFail(
-          'Pixel data is all zeros — screen capture not working.\n\n' +
-          'In Alt1 Settings → Capture tab:\n' +
-          '• Make sure OpenGL capture is selected\n' +
-          '• Click the test button — should say "successfully found home teleport"\n' +
-          '• If it fails, try Desktop capture mode\n\n' +
-          'Then reload and scan again.'
-        );
-        return;
-      }
-
-      // ── Step 3: Try all 4 byte orderings, search cropped region for dialog ──
-
-      scanText.textContent = `Step 3: ${nonZero} non-zero pixels. Scanning for dialog…`;
-
-      let bounds   = null;
-      let winOrder = -1;
-
-      for (let order = 0; order < 4; order++) {
-        const img = bufToImgData(buf, rsW, cropH, order);
-        const ci  = (Math.floor(cropH / 2) * rsW + Math.floor(rsW / 2)) * 4;
-        console.log(`[StarScout] order=${order} cropCenter=(${img.data[ci]},${img.data[ci+1]},${img.data[ci+2]})`);
-        const b = findDialogBounds(img, absX, absY);
-        if (b) { bounds = b; winOrder = order; break; }
-      }
-
-      console.log(`[StarScout] winOrder:${winOrder} bounds:${JSON.stringify(bounds)}`);
-
-      if (!bounds) {
-        const img0    = bufToImgData(buf, rsW, cropH, 0);
-        const midY    = Math.floor(cropH / 2);
-        const samples = [];
-        for (let dx = -4; dx <= 4; dx++) {
-          const px = Math.floor(rsW / 2) + dx * 30;
-          const pi = (midY * rsW + px) * 4;
-          samples.push(`(${img0.data[pi]},${img0.data[pi+1]},${img0.data[pi+2]})`);
+      // Try bindScreenRegion with absolute coords
+      try {
+        const id = alt1.bindScreenRegion(absX, absY, rsW, cropH);
+        if (id !== null && id !== undefined && id >= 0) {
+          imgId = id; method = 'bindScreenRegion(abs bottom half)';
         }
-        console.log('[StarScout] crop mid-row samples (order 0):', samples.join(' '));
+      } catch(e) { console.log('[StarScout] bindScreenRegion(abs) failed: ' + e.message); }
+
+      // Fall back: bindRegion with RS-relative coords
+      if (imgId < 0) {
+        try {
+          const id = alt1.bindRegion(relX, relY, rsW, cropH);
+          if (id !== null && id !== undefined && id >= 0) {
+            imgId = id; method = 'bindRegion(rel bottom half)';
+          }
+        } catch(e) { console.log('[StarScout] bindRegion(rel) failed: ' + e.message); }
+      }
+
+      // Last resort: bind the entire RS window from 0,0
+      if (imgId < 0) {
+        try {
+          const id = alt1.bindRegion(0, 0, rsW, rsH);
+          if (id !== null && id !== undefined && id >= 0) {
+            imgId = id; method = 'bindRegion(full window)'; scanH = rsH;
+          }
+        } catch(e) { console.log('[StarScout] bindRegion(full) failed: ' + e.message); }
+      }
+
+      console.log('[StarScout] method=' + method + ' imgId=' + imgId);
+
+      if (imgId < 0) {
+        diagFail('"View screen" permission not active.\nRight-click the app spanner icon and enable "Screen pixels", then reload.');
+        return;
+      }
+
+      scanText.textContent = 'Step 2: Bound region (' + method + '). Reading text rows…';
+
+      // Step 3: scan every line for text.
+      //
+      // bindReadString(id, fontname, x, y) — x,y are LOCAL to the bound image.
+      // RS dialog text line height is ~13px.
+      // Valid fonts: 'chat', 'chatmono', 'xpcounter'
+      // We try all 3 at each row, and also try a few x offsets
+      // since the dialog may not start at x=0.
+
+      const LINE_HEIGHT = 13;
+      const FONTS       = ['chat', 'chatmono', 'xpcounter'];
+      const X_OFFSETS   = [0, 50, 100, 150, 200, Math.floor(rsW * 0.25), Math.floor(rsW * 0.33)];
+      const allLines    = [];
+      let   attempts    = 0;
+
+      for (let y = 0; y < scanH - LINE_HEIGHT; y += LINE_HEIGHT) {
+        let found = false;
+        for (const font of FONTS) {
+          for (const x of X_OFFSETS) {
+            let line = '';
+            try {
+              line = alt1.bindReadString(imgId, font, x, y) || '';
+            } catch(e) {
+              console.warn('[StarScout] bindReadString err y=' + y + ' font=' + font + ' x=' + x + ': ' + e.message);
+              continue;
+            }
+            attempts++;
+            if (line && line.trim().length > 1) {
+              console.log('[StarScout] HIT y=' + y + ' font=' + font + ' x=' + x + ': ' + JSON.stringify(line));
+              allLines.push(line.trim());
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+      }
+
+      console.log('[StarScout] attempts=' + attempts + ' linesFound=' + allLines.length);
+      console.log('[StarScout] lines:', JSON.stringify(allLines));
+
+      if (allLines.length === 0) {
         diagFail(
-          `No dialog found in bottom half of RS window (${rsW}×${cropH}px).\n\n` +
-          `Color samples: ${samples.slice(0, 5).join(' ')}\n\n` +
-          `Make sure the telescope dialog is fully visible, then scan.\n` +
-          `Check Dev Console for [StarScout] logs to help diagnose.`
+          'No text found after ' + attempts + ' attempts using ' + method + '.\n\n' +
+          'Make sure:\n' +
+          '\u2022 The telescope dialog is open and fully visible\n' +
+          '\u2022 "View screen" permission is enabled\n' +
+          '\u2022 RS is not minimised\n\n' +
+          'Check Dev Console (right-click spanner) for [StarScout] logs.'
         );
         return;
       }
 
-      scanText.textContent = `Dialog found at (${bounds.x},${bounds.y}) ${bounds.w}×${bounds.h} — hasNext:${bounds.hasNextButton}. Reading text…`;
-      doOCR(bounds);
+      const fullText  = allLines.join(' ');
+      const lower     = fullText.toLowerCase();
+      const isStarDlg = lower.includes('shooting star')
+                     || lower.includes('size')
+                     || lower.includes('land in')
+                     || lower.includes('minutes');
+
+      console.log('[StarScout] fullText=' + JSON.stringify(fullText) + ' isStarDlg=' + isStarDlg);
+
+      if (!isStarDlg) {
+        diagFail(
+          'Text found but not the star dialog.\n\n' +
+          'Read: "' + fullText.substring(0, 150) + '"\n\n' +
+          'Make sure the telescope dialog is open, then scan.'
+        );
+        return;
+      }
+
+      attemptParse(fullText, null);
 
     } catch(err) {
       console.error('[StarScout] scanScreen error:', err);
-      diagFail(`Scan error: ${err.message || String(err)}`);
+      diagFail('Scan error: ' + (err.message || String(err)));
     }
 
   }, 50);
 
 }
-// ── OCR the located dialog region ──
+// ── OCR the located dialog region (pixel fallback path) ──
+// Called when the text-first path failed and pixel scanning found a region.
+// Uses bindRegion to capture just that region, then scans rows with bindReadString.
 
 function doOCR(bounds) {
 
-console.log(`[StarScout] OCR bounds:${JSON.stringify(bounds)} hasNextButton:${bounds.hasNextButton}`);
+  console.log(`[StarScout] doOCR bounds:${JSON.stringify(bounds)}`);
 
-try {
+  try {
+    const imgId = alt1.bindRegion(bounds.x, bounds.y, bounds.w, bounds.h);
+    if (!imgId && imgId !== 0) {
+      showDialogFoundNoText(bounds);
+      return;
+    }
 
-const text = alt1.bindReadString(bounds.x, bounds.y, bounds.w, bounds.h);
+    const LINE_HEIGHT = 13;
+    const lines = [];
 
-console.log('[StarScout] bindReadString:', JSON.stringify(text));
+    for (let y = 0; y < bounds.h - LINE_HEIGHT; y += LINE_HEIGHT) {
+      let line = '';
+      try { line = alt1.bindReadString(imgId, 'chat', 0, y) || ''; } catch(e) {}
+      if (line && line.trim().length > 1) {
+        console.log(`[StarScout] doOCR y=${y}: ${JSON.stringify(line)}`);
+        lines.push(line.trim());
+      }
+    }
 
-if (text && text.trim().length > 5) {
+    console.log(`[StarScout] doOCR lines:`, lines);
 
-attemptParse(text.trim(), bounds);
+    if (lines.length === 0) {
+      showDialogFoundNoText(bounds);
+      return;
+    }
 
-return;
+    attemptParse(lines.join(' '), bounds);
 
-}
-
-const ctext = alt1.bindReadColorString(bounds.x, bounds.y, bounds.w, bounds.h);
-
-console.log('[StarScout] bindReadColorString:', JSON.stringify(ctext));
-
-if (ctext && ctext.trim().length > 5) {
-
-const plain = ctext.replace(/<[^>]+>/g, '').replace(/\|[0-9a-f]{6}/gi, '').trim();
-
-attemptParse(plain, bounds);
-
-return;
-
-}
-
-showDialogFoundNoText(bounds);
-
-} catch(err) {
-
-console.error('[StarScout] OCR error:', err);
-
-diagFail(`OCR error: ${err.message || err}\nDialog was located but text could not be read.`);
-
-}
+  } catch(err) {
+    console.error('[StarScout] doOCR error:', err);
+    diagFail(`OCR error: ${err.message || err}\nDialog was located but text could not be read.`);
+  }
 
 }
 
