@@ -1405,20 +1405,26 @@ function scanScreen() {
       const rsH      = alt1.rsHeight;
       const rsLinked = alt1.rsLinked;
 
-      console.log('[StarScout] rsLinked=' + rsLinked + ' w=' + rsW + ' h=' + rsH);
+      // permissionPixel (no 's') is the correct property name per Alt1 API docs
+      const hasPerm  = alt1.permissionPixel;
+
+      console.log('[StarScout] rsLinked=' + rsLinked + ' w=' + rsW + ' h=' + rsH + ' permissionPixel=' + hasPerm);
 
       if (!rsLinked || rsW <= 0 || rsH <= 0) {
-        diagFail('RuneScape window not detected by Alt1.\nMake sure RuneScape is open and Alt1 has found it.');
+        diagFail('RuneScape window not detected.\nMake sure RuneScape is open and Alt1 has found it.');
         return;
       }
 
-      // Step 2: capture bottom half as raw pixels via getRegion.
+      if (!hasPerm) {
+        diagFail('Missing pixel permission.\nRight-click the app spanner → enable "View screen", then reload.');
+        return;
+      }
+
+      // Step 2: capture the bottom half as base64 ARGB.
       //
-      // bindReadString only works for chat/xp fonts — NOT the RS interface/dialog font.
-      // getRegion returns raw BGRA pixel data we can render to a canvas,
-      // then send as an image to Claude vision API for OCR.
-      //
-      // getRegion(x, y, w, h) uses RS-window-relative coordinates.
+      // IMPORTANT: alt1.getRegion(x, y, w, h) returns a BASE64-ENCODED STRING
+      // of 8bpp ARGB pixel data, NOT an Int32Array.
+      // Coordinates are RS-window-relative.
 
       const cropY = Math.floor(rsH * 0.5);
       const cropH = rsH - cropY;
@@ -1426,64 +1432,131 @@ function scanScreen() {
       console.log('[StarScout] getRegion(0, ' + cropY + ', ' + rsW + ', ' + cropH + ')');
       scanText.textContent = 'Step 2: Capturing pixels…';
 
-      let buf;
+      let b64;
       try {
-        buf = alt1.getRegion(0, cropY, rsW, cropH);
+        b64 = alt1.getRegion(0, cropY, rsW, cropH);
       } catch(e) {
-        diagFail('getRegion failed: ' + e.message + '\nEnable "View screen" permission (app spanner).');
+        diagFail('getRegion failed: ' + e.message);
         return;
       }
 
-      if (!buf || buf.length === 0) {
-        diagFail('getRegion returned empty buffer.\nEnable "View screen" permission (app spanner).');
+      if (!b64 || b64.length === 0) {
+        diagFail('getRegion returned empty.\nEnable "View screen" permission (app spanner).');
         return;
       }
 
-      // Verify we got real pixels (not all zeros)
-      let nonZero = 0;
-      for (let i = 0; i < Math.min(buf.length, 2000); i++) {
-        if (buf[i] !== 0) nonZero++;
-      }
-      console.log('[StarScout] buf.length=' + buf.length + ' nonZero(2k)=' + nonZero);
+      console.log('[StarScout] getRegion returned ' + b64.length + ' chars of base64');
 
-      if (nonZero === 0) {
-        diagFail('Pixel data is all zeros.\nIn Alt1 Settings > Capture: try switching between OpenGL and Desktop capture mode, then reload.');
-        return;
-      }
-
-      // Step 3: render pixels to a canvas as PNG, send to Claude vision for OCR.
+      // Step 3: decode base64 ARGB → canvas → PNG → send to vision API.
       //
-      // getRegion returns Int32Array in BGRA byte order.
-      // We convert to RGBA for canvas ImageData.
+      // The base64 decodes to raw bytes in ARGB order (A,R,G,B per pixel).
+      // Canvas ImageData wants RGBA order.
 
-      scanText.textContent = 'Step 3: Rendering to canvas…';
+      scanText.textContent = 'Step 3: Decoding pixels…';
 
+      const raw    = atob(b64);
+      const pixels = raw.length / 4;
       const canvas = document.createElement('canvas');
       canvas.width  = rsW;
       canvas.height = cropH;
-      const ctx = canvas.getContext('2d');
+      const ctx     = canvas.getContext('2d');
       const imgData = ctx.createImageData(rsW, cropH);
-      const src = imgData.data;
+      const dst     = imgData.data;
 
-      for (let i = 0; i < rsW * cropH; i++) {
-        const px = buf[i] >>> 0;
-        src[i*4+0] = (px >> 16) & 0xff; // R (from BGRA: byte2)
-        src[i*4+1] = (px >>  8) & 0xff; // G (from BGRA: byte1)
-        src[i*4+2] =  px        & 0xff; // B (from BGRA: byte0)
-        src[i*4+3] = 255;
+      // ARGB → RGBA
+      for (let i = 0; i < pixels; i++) {
+        const a = raw.charCodeAt(i * 4 + 0);
+        const r = raw.charCodeAt(i * 4 + 1);
+        const g = raw.charCodeAt(i * 4 + 2);
+        const b = raw.charCodeAt(i * 4 + 3);
+        dst[i * 4 + 0] = r;
+        dst[i * 4 + 1] = g;
+        dst[i * 4 + 2] = b;
+        dst[i * 4 + 3] = 255;
       }
 
       ctx.putImageData(imgData, 0, 0);
 
-      // Convert canvas to base64 PNG
-      const dataUrl  = canvas.toDataURL('image/png');
-      const base64   = dataUrl.split(',')[1];
+      // Verify center pixel is not black (sanity check)
+      const cx = Math.floor(rsW / 2);
+      const cy = Math.floor(cropH / 2);
+      const cp = ctx.getImageData(cx, cy, 1, 1).data;
+      console.log('[StarScout] center pixel RGBA=(' + cp[0] + ',' + cp[1] + ',' + cp[2] + ',' + cp[3] + ')');
 
-      console.log('[StarScout] PNG base64 length=' + base64.length);
-      scanText.textContent = 'Step 4: Sending to Claude vision for OCR…';
+      // Step 4: now use bindRegion + bindReadString on the same region
+      // so we get Alt1's OCR, but with the correct pixel data verified above.
+      // Try reading text from the bound region now that we know pixels work.
 
-      // Step 4: call Claude API with the image
-      callClaudeVision(base64);
+      scanText.textContent = 'Step 4: Binding region for OCR…';
+
+      let imgId = -1;
+      try {
+        imgId = alt1.bindRegion(0, cropY, rsW, cropH);
+        console.log('[StarScout] bindRegion id=' + imgId);
+      } catch(e) {
+        console.error('[StarScout] bindRegion failed:', e.message);
+      }
+
+      if (imgId >= 0) {
+        // Verify bindGetPixel matches what getRegion gave us
+        let bpx = 0;
+        try { bpx = alt1.bindGetPixel(imgId, cx, cy); } catch(e) {}
+        const br = (bpx >> 16) & 0xff;
+        const bg = (bpx >>  8) & 0xff;
+        const bb =  bpx        & 0xff;
+        console.log('[StarScout] bindGetPixel at center: raw=' + bpx + ' RGB=(' + br + ',' + bg + ',' + bb + ')');
+
+        // Scan for text
+        const seenText = new Set();
+        const allLines = [];
+        for (let y = 0; y < cropH; y++) {
+          let line = '';
+          try { line = alt1.bindReadString(imgId, 'chat', 0, y) || ''; } catch(e) { break; }
+          const t = line.trim();
+          if (t.length > 2 && !seenText.has(t)) {
+            seenText.add(t);
+            allLines.push(t);
+            console.log('[StarScout] text y=' + y + ': ' + JSON.stringify(t));
+            if (allLines.length >= 10) break;
+          }
+        }
+
+        console.log('[StarScout] OCR lines:', JSON.stringify(allLines));
+
+        if (allLines.length > 0) {
+          const fullText = allLines.join(' ');
+          const lower = fullText.toLowerCase();
+          if (lower.includes('shooting star') || lower.includes('size') || lower.includes('land in') || lower.includes('minutes')) {
+            attemptParse(fullText, null);
+            return;
+          }
+        }
+      }
+
+      // Step 5: OCR via canvas pixel scanning if bindReadString didn't work.
+      // We have real pixels on the canvas — scan for the dialog text using
+      // our colour-based detection and then display what pixels we found
+      // so the user can manually fill in if needed.
+
+      scanText.textContent = 'Step 5: Pixel scanning for dialog…';
+      const pxResult = scanCanvasForDialog(ctx, rsW, cropH);
+
+      if (pxResult) {
+        console.log('[StarScout] pixel scan found dialog at', JSON.stringify(pxResult));
+        scanArea.className = 'scan-area error';
+        scanText.innerHTML =
+          '<strong>Dialog located at (' + pxResult.x + ', ' + pxResult.y + ') ' + pxResult.w + '×' + pxResult.h + 'px</strong><br><br>' +
+          'Alt1 OCR could not read the dialog font automatically.<br><br>' +
+          'Please fill in the fields manually below.';
+        setStatus('Dialog found — manual entry needed', 'err');
+        scanBtn.disabled = false;
+      } else {
+        diagFail(
+          'No dialog found.\n\n' +
+          'Make sure the telescope dialog is fully visible, then scan.\n\n' +
+          'Center pixel: RGB(' + cp[0] + ',' + cp[1] + ',' + cp[2] + ')'
+        );
+      }
 
     } catch(err) {
       console.error('[StarScout] scanScreen error:', err);
@@ -1494,66 +1567,33 @@ function scanScreen() {
 
 }
 
-async function callClaudeVision(base64Png) {
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: 'image/png', data: base64Png }
-            },
-            {
-              type: 'text',
-              text: 'This is a screenshot from the game RuneScape. If you can see a telescope or shooting star dialogue box, transcribe ALL the text in it exactly. If there is no such dialogue visible, reply with just the word NONE. Reply with only the transcribed text or NONE, nothing else.'
-            }
-          ]
-        }]
-      })
-    });
+// Canvas-based dialog detection — uses pixel colors from the actual decoded image
+function scanCanvasForDialog(ctx, w, h) {
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const px = imageData.data;
 
-    const data = await response.json();
-    console.log('[StarScout] Claude vision response:', JSON.stringify(data));
+  let minX = w, maxX = 0, minY = h, maxY = 0, hits = 0;
 
-    if (!response.ok) {
-      diagFail('Claude API error: ' + (data.error && data.error.message ? data.error.message : JSON.stringify(data)));
-      return;
+  for (let y = 0; y < h; y += 2) {
+    for (let x = 0; x < w; x += 2) {
+      const i = (y * w + x) * 4;
+      const r = px[i], g = px[i+1], b = px[i+2];
+      if (isParchment(r, g, b) || isDarkBand(r, g, b)) {
+        hits++;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
     }
-
-    const text = data.content && data.content[0] && data.content[0].text
-      ? data.content[0].text.trim()
-      : '';
-
-    console.log('[StarScout] OCR text: ' + JSON.stringify(text));
-
-    if (!text || text === 'NONE') {
-      diagFail('No telescope dialog visible in the captured image.\nMake sure the dialog is fully open and visible, then scan.');
-      return;
-    }
-
-    const lower = text.toLowerCase();
-    const isStarDlg = lower.includes('shooting star')
-                   || lower.includes('size')
-                   || lower.includes('land in')
-                   || lower.includes('minutes');
-
-    if (!isStarDlg) {
-      diagFail('Claude read text but it\'s not the star dialog.\n\nRead: "' + text.substring(0, 150) + '"');
-      return;
-    }
-
-    attemptParse(text, null);
-
-  } catch(err) {
-    console.error('[StarScout] callClaudeVision error:', err);
-    diagFail('Vision API error: ' + (err.message || String(err)));
   }
+
+  const dw = maxX - minX;
+  const dh = maxY - minY;
+  console.log('[StarScout] pixel scan hits=' + hits + ' w=' + dw + ' h=' + dh);
+
+  if (hits < 200 || dw < 150 || dh < 30) return null;
+  return { x: minX, y: minY, w: dw, h: dh };
 }
 // ── OCR the located dialog region (pixel fallback path) ──
 // Called when the text-first path failed and pixel scanning found a region.
