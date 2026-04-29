@@ -1,981 +1,1770 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Star Scout</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --gold:        #c8a84b;
-      --gold-light:  #e8c96a;
-      --gold-dim:    #7a6030;
-      --bg-dark:     #0e0b07;
-      --bg-panel:    #1a1409;
-      --bg-inset:    #110e06;
-      --border:      #3a2e12;
-      --border-hi:   #5a4820;
-      --text:        #d4c090;
-      --text-dim:    #8a7850;
-      --star-blue:   #7ab8e8;
-      --star-glow:   #4a90c8;
-      --green:       #5db86a;
-      --red:         #c85050;
-    }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8" />
 
-    body {
-      font-family: 'Crimson Text', Georgia, serif;
-      background: var(--bg-dark);
-      color: var(--text);
-      font-size: 14px;
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    /* ── Header ── */
-    .header {
-      background: linear-gradient(180deg, #251c08 0%, var(--bg-panel) 100%);
-      border-bottom: 2px solid var(--border-hi);
-      padding: 8px 12px 6px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      position: relative;
-    }
-    .header::after {
-      content: '';
-      position: absolute;
-      bottom: -4px; left: 0; right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
-    }
-    .header-icon {
-      font-size: 22px;
-      filter: drop-shadow(0 0 6px var(--star-glow));
-    }
-    .header-title {
-      font-family: 'Cinzel', serif;
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--gold-light);
-      letter-spacing: 1px;
-      text-shadow: 0 0 12px rgba(200,168,75,0.4);
-    }
-    .header-sub {
-      font-size: 10px;
-      color: var(--text-dim);
-      letter-spacing: 0.5px;
-      margin-top: 1px;
-    }
-    .alt1-badge {
-      margin-left: auto;
-      font-size: 9px;
-      font-family: 'Cinzel', serif;
-      color: var(--gold-dim);
-      border: 1px solid var(--border);
-      padding: 2px 5px;
-      border-radius: 2px;
-      letter-spacing: 0.5px;
-    }
+<title>Star Scout</title>
 
-    /* ── Section labels ── */
-    .section {
-      padding: 10px 12px 8px;
-      border-bottom: 1px solid var(--border);
-    }
-    .section-label {
-      font-family: 'Cinzel', serif;
-      font-size: 9px;
-      color: var(--gold-dim);
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
+<link rel="preconnect" href="https://fonts.googleapis.com" />
 
-    /* ── World row ── */
-    .world-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    .world-input-wrap {
-      position: relative;
-      flex: 1;
-    }
-    .world-input-wrap label {
-      position: absolute;
-      left: 10px; top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-dim);
-      font-size: 13px;
-      pointer-events: none;
-      transition: opacity 0.2s;
-    }
-    .world-input-wrap.has-value label { opacity: 0; }
-    input[type="number"] {
-      width: 100%;
-      background: var(--bg-inset);
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      color: var(--gold-light);
-      font-family: 'Cinzel', serif;
-      font-size: 14px;
-      padding: 7px 10px;
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      -moz-appearance: textfield;
-    }
-    input[type="number"]::-webkit-inner-spin-button { display: none; }
-    input[type="number"]:focus {
-      border-color: var(--gold-dim);
-      box-shadow: 0 0 8px rgba(200,168,75,0.15);
-    }
-    .world-detected {
-      font-size: 11px;
-      color: var(--green);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      white-space: nowrap;
-    }
-    .world-detected .dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 4px var(--green);
-    }
-    .world-detected.no-detect { color: var(--text-dim); }
-    .world-detected.no-detect .dot { background: var(--text-dim); box-shadow: none; }
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
 
-    /* ── Scan button ── */
-    .btn {
-      font-family: 'Cinzel', serif;
-      font-size: 11px;
-      letter-spacing: 0.5px;
-      border: 1px solid var(--border-hi);
-      border-radius: 3px;
-      cursor: pointer;
-      padding: 7px 12px;
-      transition: all 0.15s;
-      white-space: nowrap;
-    }
-    .btn-primary {
-      background: linear-gradient(180deg, #2a2008 0%, #1a1208 100%);
-      color: var(--gold-light);
-      border-color: var(--gold-dim);
-    }
-    .btn-primary:hover {
-      background: linear-gradient(180deg, #3a2e10 0%, #252010 100%);
-      border-color: var(--gold);
-      box-shadow: 0 0 10px rgba(200,168,75,0.2);
-    }
-    .btn-primary:active { transform: translateY(1px); }
-    .btn-secondary {
-      background: var(--bg-inset);
-      color: var(--text-dim);
-    }
-    .btn-secondary:hover { border-color: var(--gold-dim); color: var(--text); }
+<style>
 
-    /* ── Scan area ── */
-    .scan-area {
-      background: var(--bg-inset);
-      border: 1px dashed var(--border-hi);
-      border-radius: 4px;
-      padding: 10px;
-      min-height: 70px;
-      font-size: 12px;
-      color: var(--text-dim);
-      font-family: 'Crimson Text', serif;
-      font-style: italic;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      line-height: 1.5;
-      margin-top: 8px;
-      transition: border-color 0.3s, background 0.3s;
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
-    }
-    .scan-area.scanning {
-      border-color: var(--star-blue);
-      background: #0a1020;
-    }
-    .scan-area.success {
-      border-color: var(--green);
-      border-style: solid;
-      background: #0a150a;
-      color: var(--text);
-      font-style: normal;
-    }
-    .scan-area.error {
-      border-color: var(--red);
-      border-style: solid;
-      color: var(--red);
-    }
-    .scan-pulse {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      background: var(--star-blue);
-      animation: pulse-scan 1s ease-out infinite;
-      display: none;
-    }
-    .scan-area.scanning .scan-pulse { display: block; }
-    @keyframes pulse-scan {
-      0%   { transform: translate(-50%,-50%) scale(1); opacity: 1; }
-      100% { transform: translate(-50%,-50%) scale(8); opacity: 0; }
-    }
+:root {
 
-    /* ── Manual fields ── */
-    .manual-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 4px;
-    }
-    .field-wrap { display: flex; flex-direction: column; gap: 4px; }
-    .field-label {
-      font-size: 10px;
-      color: var(--text-dim);
-      letter-spacing: 0.5px;
-      font-family: 'Cinzel', serif;
-    }
-    select, input[type="number"].small {
-      background: var(--bg-inset);
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      color: var(--gold-light);
-      font-family: 'Crimson Text', serif;
-      font-size: 13px;
-      padding: 6px 8px;
-      outline: none;
-      width: 100%;
-      transition: border-color 0.2s;
-    }
-    select:focus, input[type="number"].small:focus {
-      border-color: var(--gold-dim);
-    }
-    select option { background: #1a1409; color: var(--text); }
+--gold: #c8a84b;
 
-    /* ── Output box ── */
-    .output-section {
-      padding: 10px 12px;
-    }
-    .output-box {
-      background: var(--bg-inset);
-      border: 1px solid var(--border-hi);
-      border-radius: 4px;
-      padding: 10px 12px;
-      font-family: 'Cinzel', serif;
-      font-size: 12px;
-      color: var(--gold-light);
-      letter-spacing: 0.3px;
-      min-height: 38px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      word-break: break-all;
-    }
-    .output-box.empty { color: var(--text-dim); font-family: 'Crimson Text', serif; font-style: italic; font-size: 13px; }
-    .output-box .tag {
-      background: rgba(200,168,75,0.1);
-      border: 1px solid var(--gold-dim);
-      padding: 1px 5px;
-      border-radius: 2px;
-      font-size: 11px;
-      white-space: nowrap;
-    }
+--gold-light: #e8c96a;
 
-    .copy-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-    }
-    .copy-row .btn { flex: 1; }
+--gold-dim: #7a6030;
 
-    /* ── Status bar ── */
-    .status-bar {
-      padding: 6px 12px;
-      background: var(--bg-panel);
-      border-top: 1px solid var(--border);
-      font-size: 10px;
-      color: var(--text-dim);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .status-indicator {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--gold-dim);
-      flex-shrink: 0;
-    }
-    .status-indicator.ok { background: var(--green); box-shadow: 0 0 4px var(--green); }
-    .status-indicator.err { background: var(--red); }
+--bg-dark: #0e0b07;
 
-    /* ── Divider ── */
-    .divider {
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--border), transparent);
-      margin: 2px 0;
-    }
+--bg-panel: #1a1409;
 
-    /* ── Copy flash ── */
-    .copy-flash {
-      position: fixed;
-      bottom: 36px; left: 50%;
-      transform: translateX(-50%) translateY(10px);
-      background: #1a2a1a;
-      border: 1px solid var(--green);
-      color: var(--green);
-      font-family: 'Cinzel', serif;
-      font-size: 11px;
-      padding: 6px 14px;
-      border-radius: 3px;
-      opacity: 0;
-      transition: all 0.2s;
-      pointer-events: none;
-      white-space: nowrap;
-    }
-    .copy-flash.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
+--bg-inset: #110e06;
 
-    .star-shimmer {
-      display: inline-block;
-      animation: shimmer 2s ease-in-out infinite;
-    }
-    @keyframes shimmer {
-      0%, 100% { filter: drop-shadow(0 0 4px var(--star-glow)); }
-      50%       { filter: drop-shadow(0 0 12px #a0d4ff); }
-    }
-  </style>
+--border: #3a2e12;
+
+--border-hi: #5a4820;
+
+--text: #d4c090;
+
+--text-dim: #8a7850;
+
+--star-blue: #7ab8e8;
+
+--star-glow: #4a90c8;
+
+--green: #5db86a;
+
+--red: #c85050;
+
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+
+font-family: 'Crimson Text', Georgia, serif;
+
+background: var(--bg-dark);
+
+color: var(--text);
+
+font-size: 14px;
+
+min-height: 100vh;
+
+overflow-x: hidden;
+
+}
+
+/* ── Header ── */
+
+.header {
+
+background: linear-gradient(180deg, #251c08 0%, var(--bg-panel) 100%);
+
+border-bottom: 2px solid var(--border-hi);
+
+padding: 8px 12px 6px;
+
+display: flex;
+
+align-items: center;
+
+gap: 10px;
+
+position: relative;
+
+}
+
+.header::after {
+
+content: '';
+
+position: absolute;
+
+bottom: -4px; left: 0; right: 0;
+
+height: 2px;
+
+background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+
+}
+
+.header-icon {
+
+font-size: 22px;
+
+filter: drop-shadow(0 0 6px var(--star-glow));
+
+}
+
+.header-title {
+
+font-family: 'Cinzel', serif;
+
+font-size: 15px;
+
+font-weight: 700;
+
+color: var(--gold-light);
+
+letter-spacing: 1px;
+
+text-shadow: 0 0 12px rgba(200,168,75,0.4);
+
+}
+
+.header-sub {
+
+font-size: 10px;
+
+color: var(--text-dim);
+
+letter-spacing: 0.5px;
+
+margin-top: 1px;
+
+}
+
+.alt1-badge {
+
+margin-left: auto;
+
+font-size: 9px;
+
+font-family: 'Cinzel', serif;
+
+color: var(--gold-dim);
+
+border: 1px solid var(--border);
+
+padding: 2px 5px;
+
+border-radius: 2px;
+
+letter-spacing: 0.5px;
+
+}
+
+/* ── Section labels ── */
+
+.section {
+
+padding: 10px 12px 8px;
+
+border-bottom: 1px solid var(--border);
+
+}
+
+.section-label {
+
+font-family: 'Cinzel', serif;
+
+font-size: 9px;
+
+color: var(--gold-dim);
+
+letter-spacing: 1.5px;
+
+text-transform: uppercase;
+
+margin-bottom: 8px;
+
+}
+
+/* ── World row ── */
+
+.world-row {
+
+display: flex;
+
+gap: 8px;
+
+align-items: center;
+
+}
+
+.world-input-wrap {
+
+position: relative;
+
+flex: 1;
+
+}
+
+.world-input-wrap label {
+
+position: absolute;
+
+left: 10px; top: 50%;
+
+transform: translateY(-50%);
+
+color: var(--text-dim);
+
+font-size: 13px;
+
+pointer-events: none;
+
+transition: opacity 0.2s;
+
+}
+
+.world-input-wrap.has-value label { opacity: 0; }
+
+input[type="number"] {
+
+width: 100%;
+
+background: var(--bg-inset);
+
+border: 1px solid var(--border);
+
+border-radius: 3px;
+
+color: var(--gold-light);
+
+font-family: 'Cinzel', serif;
+
+font-size: 14px;
+
+padding: 7px 10px;
+
+outline: none;
+
+transition: border-color 0.2s, box-shadow 0.2s;
+
+-moz-appearance: textfield;
+
+}
+
+input[type="number"]::-webkit-inner-spin-button { display: none; }
+
+input[type="number"]:focus {
+
+border-color: var(--gold-dim);
+
+box-shadow: 0 0 8px rgba(200,168,75,0.15);
+
+}
+
+.world-detected {
+
+font-size: 11px;
+
+color: var(--green);
+
+display: flex;
+
+align-items: center;
+
+gap: 4px;
+
+white-space: nowrap;
+
+}
+
+.world-detected .dot {
+
+width: 6px; height: 6px;
+
+border-radius: 50%;
+
+background: var(--green);
+
+box-shadow: 0 0 4px var(--green);
+
+}
+
+.world-detected.no-detect { color: var(--text-dim); }
+
+.world-detected.no-detect .dot { background: var(--text-dim); box-shadow: none; }
+
+/* ── Scan button ── */
+
+.btn {
+
+font-family: 'Cinzel', serif;
+
+font-size: 11px;
+
+letter-spacing: 0.5px;
+
+border: 1px solid var(--border-hi);
+
+border-radius: 3px;
+
+cursor: pointer;
+
+padding: 7px 12px;
+
+transition: all 0.15s;
+
+white-space: nowrap;
+
+}
+
+.btn-primary {
+
+background: linear-gradient(180deg, #2a2008 0%, #1a1208 100%);
+
+color: var(--gold-light);
+
+border-color: var(--gold-dim);
+
+}
+
+.btn-primary:hover {
+
+background: linear-gradient(180deg, #3a2e10 0%, #252010 100%);
+
+border-color: var(--gold);
+
+box-shadow: 0 0 10px rgba(200,168,75,0.2);
+
+}
+
+.btn-primary:active { transform: translateY(1px); }
+
+.btn-secondary {
+
+background: var(--bg-inset);
+
+color: var(--text-dim);
+
+}
+
+.btn-secondary:hover { border-color: var(--gold-dim); color: var(--text); }
+
+/* ── Scan area ── */
+
+.scan-area {
+
+background: var(--bg-inset);
+
+border: 1px dashed var(--border-hi);
+
+border-radius: 4px;
+
+padding: 10px;
+
+min-height: 70px;
+
+font-size: 12px;
+
+color: var(--text-dim);
+
+font-family: 'Crimson Text', serif;
+
+font-style: italic;
+
+display: flex;
+
+align-items: center;
+
+justify-content: center;
+
+text-align: center;
+
+line-height: 1.5;
+
+margin-top: 8px;
+
+transition: border-color 0.3s, background 0.3s;
+
+cursor: pointer;
+
+position: relative;
+
+overflow: hidden;
+
+}
+
+.scan-area.scanning {
+
+border-color: var(--star-blue);
+
+background: #0a1020;
+
+}
+
+.scan-area.success {
+
+border-color: var(--green);
+
+border-style: solid;
+
+background: #0a150a;
+
+color: var(--text);
+
+font-style: normal;
+
+}
+
+.scan-area.error {
+
+border-color: var(--red);
+
+border-style: solid;
+
+color: var(--red);
+
+}
+
+.scan-pulse {
+
+position: absolute;
+
+top: 50%; left: 50%;
+
+transform: translate(-50%, -50%);
+
+width: 10px; height: 10px;
+
+border-radius: 50%;
+
+background: var(--star-blue);
+
+animation: pulse-scan 1s ease-out infinite;
+
+display: none;
+
+}
+
+.scan-area.scanning .scan-pulse { display: block; }
+
+@keyframes pulse-scan {
+
+0% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+
+100% { transform: translate(-50%,-50%) scale(8); opacity: 0; }
+
+}
+
+/* ── Manual fields ── */
+
+.manual-grid {
+
+display: grid;
+
+grid-template-columns: 1fr 1fr;
+
+gap: 8px;
+
+margin-top: 4px;
+
+}
+
+.field-wrap { display: flex; flex-direction: column; gap: 4px; }
+
+.field-label {
+
+font-size: 10px;
+
+color: var(--text-dim);
+
+letter-spacing: 0.5px;
+
+font-family: 'Cinzel', serif;
+
+}
+
+select, input[type="number"].small {
+
+background: var(--bg-inset);
+
+border: 1px solid var(--border);
+
+border-radius: 3px;
+
+color: var(--gold-light);
+
+font-family: 'Crimson Text', serif;
+
+font-size: 13px;
+
+padding: 6px 8px;
+
+outline: none;
+
+width: 100%;
+
+transition: border-color 0.2s;
+
+}
+
+select:focus, input[type="number"].small:focus {
+
+border-color: var(--gold-dim);
+
+}
+
+select option { background: #1a1409; color: var(--text); }
+
+/* ── Output box ── */
+
+.output-section {
+
+padding: 10px 12px;
+
+}
+
+.output-box {
+
+background: var(--bg-inset);
+
+border: 1px solid var(--border-hi);
+
+border-radius: 4px;
+
+padding: 10px 12px;
+
+font-family: 'Cinzel', serif;
+
+font-size: 12px;
+
+color: var(--gold-light);
+
+letter-spacing: 0.3px;
+
+min-height: 38px;
+
+display: flex;
+
+align-items: center;
+
+gap: 8px;
+
+flex-wrap: wrap;
+
+word-break: break-all;
+
+}
+
+.output-box.empty { color: var(--text-dim); font-family: 'Crimson Text', serif; font-style: italic; font-size: 13px; }
+
+.output-box .tag {
+
+background: rgba(200,168,75,0.1);
+
+border: 1px solid var(--gold-dim);
+
+padding: 1px 5px;
+
+border-radius: 2px;
+
+font-size: 11px;
+
+white-space: nowrap;
+
+}
+
+.copy-row {
+
+display: flex;
+
+gap: 8px;
+
+margin-top: 8px;
+
+}
+
+.copy-row .btn { flex: 1; }
+
+/* ── Status bar ── */
+
+.status-bar {
+
+padding: 6px 12px;
+
+background: var(--bg-panel);
+
+border-top: 1px solid var(--border);
+
+font-size: 10px;
+
+color: var(--text-dim);
+
+display: flex;
+
+align-items: center;
+
+gap: 6px;
+
+}
+
+.status-indicator {
+
+width: 6px; height: 6px;
+
+border-radius: 50%;
+
+background: var(--gold-dim);
+
+flex-shrink: 0;
+
+}
+
+.status-indicator.ok { background: var(--green); box-shadow: 0 0 4px var(--green); }
+
+.status-indicator.err { background: var(--red); }
+
+/* ── Divider ── */
+
+.divider {
+
+height: 1px;
+
+background: linear-gradient(90deg, transparent, var(--border), transparent);
+
+margin: 2px 0;
+
+}
+
+/* ── Copy flash ── */
+
+.copy-flash {
+
+position: fixed;
+
+bottom: 36px; left: 50%;
+
+transform: translateX(-50%) translateY(10px);
+
+background: #1a2a1a;
+
+border: 1px solid var(--green);
+
+color: var(--green);
+
+font-family: 'Cinzel', serif;
+
+font-size: 11px;
+
+padding: 6px 14px;
+
+border-radius: 3px;
+
+opacity: 0;
+
+transition: all 0.2s;
+
+pointer-events: none;
+
+white-space: nowrap;
+
+}
+
+.copy-flash.show {
+
+opacity: 1;
+
+transform: translateX(-50%) translateY(0);
+
+}
+
+.star-shimmer {
+
+display: inline-block;
+
+animation: shimmer 2s ease-in-out infinite;
+
+}
+
+@keyframes shimmer {
+
+0%, 100% { filter: drop-shadow(0 0 4px var(--star-glow)); }
+
+50% { filter: drop-shadow(0 0 12px #a0d4ff); }
+
+}
+
+</style>
+
 </head>
+
 <body>
 
-  <!-- Header -->
-  <div class="header">
-    <div class="header-icon star-shimmer">★</div>
-    <div>
-      <div class="header-title">Star Scout</div>
-      <div class="header-sub">Shooting Stars Reporter</div>
-    </div>
-    <div class="alt1-badge">ALT1</div>
-  </div>
+<!-- Header -->
 
-  <!-- World section -->
-  <div class="section">
-    <div class="section-label">Current World</div>
-    <div class="world-row">
-      <div class="world-input-wrap" id="worldWrap">
-        <label>World number...</label>
-        <input type="number" id="worldInput" min="1" max="999" placeholder="" />
-      </div>
-      <div class="world-detected no-detect" id="worldDetect">
-        <div class="dot"></div>
-        <span id="worldDetectLabel">manual</span>
-      </div>
-      <button class="btn btn-secondary" id="detectWorldBtn" title="Auto-detect world from game">⟳</button>
-    </div>
-  </div>
+<div class="header">
 
-  <!-- Scan section -->
-  <div class="section">
-    <div class="section-label">Telescope Dialog</div>
-    <div style="display:flex; gap:8px;">
-      <button class="btn btn-primary" id="scanBtn" style="flex:1;">
-        ◉ Scan Screen for Dialog
-      </button>
-    </div>
-    <div class="scan-area" id="scanArea" title="Click to scan">
-      <div class="scan-pulse"></div>
-      <span id="scanText">Use your telescope in-game, then click Scan — or fill in fields below manually.</span>
-    </div>
-  </div>
+<div class="header-icon star-shimmer">★</div>
 
-  <!-- Manual override -->
-  <div class="section">
-    <div class="section-label">Manual Entry</div>
-    <div class="manual-grid">
-      <div class="field-wrap">
-        <div class="field-label">Region</div>
-        <select id="regionSelect">
-          <option value="">— Select —</option>
-          <option value="Ana">Ana — Anachronia</option>
-          <option value="Asg">Asg — Asgarnia</option>
-          <option value="Ash">Ash — Ashdale</option>
-          <option value="C/K">C/K — Crandor/Karamja</option>
-          <option value="Daem">Daem — Daemonheim</option>
-          <option value="Des">Des — Kharidian Desert</option>
-          <option value="F/L">F/L — Fremennik/Lunar Isle</option>
-          <option value="Feld">Feld — Feldip Hills</option>
-          <option value="Grove">Grove — The Lost Grove</option>
-          <option value="Kand">Kand — Kandarin</option>
-          <option value="M/M">M/M — Morytania/Mos Le'Harmless</option>
-          <option value="Mena">Mena — Menaphos</option>
-          <option value="Mist">Mist — Misthalin</option>
-          <option value="PGT">PGT — Piscatoris/Gnome/Tirannwn</option>
-          <option value="Wend">Wend — Wendlewick</option>
-          <option value="Wild">Wild — Wilderness</option>
-        </select>
-      </div>
-      <div class="field-wrap">
-        <div class="field-label">Size (1–10)</div>
-        <input type="number" class="small" id="sizeInput" min="1" max="10" placeholder="e.g. 7" />
-      </div>
-      <div class="field-wrap">
-        <div class="field-label">Relative Time (min)</div>
-        <input type="number" class="small" id="timeInput" min="0" max="120" placeholder="e.g. 8" />
-      </div>
-    </div>
-  </div>
+<div>
 
-  <!-- Output -->
-  <div class="output-section">
-    <div class="section-label" style="margin-bottom:8px;">Discord /call Output</div>
-    <div class="output-box empty" id="outputBox">
-      Fill in the fields above to generate your call…
-    </div>
-    <div class="copy-row">
-      <button class="btn btn-primary" id="copyBtn">⎘ Copy to Clipboard</button>
-      <button class="btn btn-secondary" id="clearBtn">✕ Clear</button>
-    </div>
-  </div>
+<div class="header-title">Star Scout</div>
 
-  <div class="divider"></div>
+<div class="header-sub">Shooting Stars Reporter</div>
 
-  <!-- Status bar -->
-  <div class="status-bar">
-    <div class="status-indicator" id="statusDot"></div>
-    <span id="statusText">Ready — waiting for scan or input</span>
-  </div>
+</div>
 
-  <!-- Copy flash -->
-  <div class="copy-flash" id="copyFlash">✓ Copied to clipboard!</div>
+<div class="alt1-badge">ALT1</div>
 
-  <!-- Alt1 wrapper library — not needed, we use window.alt1 directly -->
-  <script>
-    // ── Region name → abbreviation map ──
-    const REGION_MAP = {
-      'anachronia':                     'Ana',
-      'asgarnia':                       'Asg',
-      'ashdale':                        'Ash',
-      'crandor':                        'C/K',
-      'karamja':                        'C/K',
-      'crandor/karamja':                'C/K',
-      'karamja/crandor':                'C/K',
-      'daemonheim':                     'Daem',
-      'kharidian desert':               'Des',
-      'desert':                         'Des',
-      'fremennik':                      'F/L',
-      'lunar isle':                     'F/L',
-      'fremennik/lunar isle':           'F/L',
-      'lunar':                          'F/L',
-      'feldip hills':                   'Feld',
-      'feldip':                         'Feld',
-      'lost grove':                     'Grove',
-      'the lost grove':                 'Grove',
-      'kandarin':                       'Kand',
-      'morytania':                      'M/M',
-      'mos le\'harmless':               'M/M',
-      'morytania/mos le\'harmless':     'M/M',
-      'mos le harmless':                'M/M',
-      'menaphos':                       'Mena',
-      'misthalin':                      'Mist',
-      'piscatoris':                     'PGT',
-      'gnome stronghold':               'PGT',
-      'tirannwn':                       'PGT',
-      'piscatoris/gnome stronghold/tirannwn': 'PGT',
-      'wendlewick':                     'Wend',
-      'wilderness':                     'Wild',
-    };
+</div>
 
-    function lookupRegion(raw) {
-      const lower = raw.toLowerCase().trim();
-      if (REGION_MAP[lower]) return REGION_MAP[lower];
-      // fuzzy: find first key that contains the raw word or vice versa
-      for (const [key, abbr] of Object.entries(REGION_MAP)) {
-        if (lower.includes(key) || key.includes(lower)) return abbr;
-      }
-      return null;
-    }
+<!-- World section -->
 
-    // ── Parse telescope dialog text ──
-    // Confirmed dialog format from screenshot:
-    //   "You see a shooting star!"
-    //   "The star looks like it will land in Asgarnia in the next 37 to 39 minutes."
-    //   "The star looks to be size 7."
-    function parseTelescopeText(text) {
-      const result = { region: null, size: null, time: null, rawText: text };
-      if (!text) return result;
-      const t = text.replace(/\n/g, ' ').replace(/\s+/g, ' ');
+<div class="section">
 
-      // Region — longest-match first so "Mos Le'Harmless" beats "Mos"
-      const regionPattern = new RegExp(
-        Object.keys(REGION_MAP).sort((a,b) => b.length - a.length)
-          .map(k => k.replace(/[/\\()']/g, s => '\\' + s))
-          .join('|'),
-        'i'
-      );
-      const regionMatch = t.match(regionPattern);
-      if (regionMatch) result.region = lookupRegion(regionMatch[0]);
+<div class="section-label">Current World</div>
 
-      // Size — "to be size 7", "size 7", "size: 7"
-      const sizeMatch = t.match(/\bto be size (\d{1,2})\b/i)
-                     || t.match(/\bsize[:\s]+(\d{1,2})\b/i);
-      if (sizeMatch) result.size = parseInt(sizeMatch[1]);
+<div class="world-row">
 
-      // Time — handles RANGE "37 to 39 minutes" → takes lower bound
-      //        also handles single "8 minutes", "approximately 12 minutes"
-      const rangeMatch = t.match(/(\d{1,3})\s+to\s+(\d{1,3})\s+minutes?/i);
-      if (rangeMatch) {
-        result.time = parseInt(rangeMatch[1]); // lower bound of range
-      } else {
-        const singleMatch = t.match(/(\d{1,3})\s*minutes?/i);
-        if (singleMatch) result.time = parseInt(singleMatch[1]);
-      }
+<div class="world-input-wrap" id="worldWrap">
 
-      return result;
-    }
+<label>World number...</label>
 
-    // ── UI state ──
-    let scannedData = { region: null, size: null, time: null };
-    let worldFromGameState = null;
+<input type="number" id="worldInput" min="1" max="999" placeholder="" />
 
-    const worldInput     = document.getElementById('worldInput');
-    const worldWrap      = document.getElementById('worldWrap');
-    const worldDetect    = document.getElementById('worldDetect');
-    const worldDetectLbl = document.getElementById('worldDetectLabel');
-    const detectWorldBtn = document.getElementById('detectWorldBtn');
-    const scanBtn        = document.getElementById('scanBtn');
-    const scanArea       = document.getElementById('scanArea');
-    const scanText       = document.getElementById('scanText');
-    const regionSelect   = document.getElementById('regionSelect');
-    const sizeInput      = document.getElementById('sizeInput');
-    const timeInput      = document.getElementById('timeInput');
-    const outputBox      = document.getElementById('outputBox');
-    const copyBtn        = document.getElementById('copyBtn');
-    const clearBtn       = document.getElementById('clearBtn');
-    const statusDot      = document.getElementById('statusDot');
-    const statusText     = document.getElementById('statusText');
-    const copyFlash      = document.getElementById('copyFlash');
+</div>
 
-    function setStatus(msg, type = 'idle') {
-      statusText.textContent = msg;
-      statusDot.className = 'status-indicator' + (type === 'ok' ? ' ok' : type === 'err' ? ' err' : '');
-    }
+<div class="world-detected no-detect" id="worldDetect">
 
-    function buildCallString() {
-      const world  = worldInput.value.trim();
-      const region = regionSelect.value;
-      const size   = sizeInput.value.trim();
-      const time   = timeInput.value.trim();
-      if (!world && !region && !size && !time) return null;
-      let parts = ['/call'];
-      if (world)  parts.push(`world: ${world}`);
-      if (region) parts.push(`region: ${region}`);
-      if (size)   parts.push(`size: ${size}`);
-      if (time)   parts.push(`relative-time: ${time}`);
-      return parts.join(' ');
-    }
+<div class="dot"></div>
 
-    function renderOutput() {
-      const str = buildCallString();
-      if (!str) {
-        outputBox.className = 'output-box empty';
-        outputBox.textContent = 'Fill in the fields above to generate your call…';
-        return;
-      }
-      outputBox.className = 'output-box';
-      // Render with highlighted tags
-      outputBox.innerHTML = str.split(' ').map(token => {
-        if (token.startsWith('/')) return `<span style="color:var(--star-blue);font-weight:700">${token}</span>`;
-        if (token.endsWith(':')) return `<span class="tag">${token}</span>`;
-        return `<span>${token}</span>`;
-      }).join(' ');
-    }
+<span id="worldDetectLabel">manual</span>
 
-    // ── World detection (Alt1 gamestate) ──
-    function detectWorld() {
-      try {
-        if (typeof alt1 !== 'undefined' && alt1.currentWorld) {
-          const w = alt1.currentWorld;
-          if (w && w > 0) {
-            worldInput.value = w;
-            worldWrap.classList.add('has-value');
-            worldDetect.classList.remove('no-detect');
-            worldDetectLbl.textContent = 'detected';
-            worldFromGameState = w;
-            setStatus(`World ${w} detected from game`, 'ok');
-            renderOutput();
-            return;
-          }
-        }
-      } catch(e) {}
-      // Fallback: try window.alt1 property
-      try {
-        if (window.alt1 && window.alt1.currentWorld) {
-          const w = window.alt1.currentWorld;
-          if (w && w > 0) {
-            worldInput.value = w;
-            worldWrap.classList.add('has-value');
-            worldDetect.classList.remove('no-detect');
-            worldDetectLbl.textContent = 'detected';
-            setStatus(`World ${w} detected from game`, 'ok');
-            renderOutput();
-            return;
-          }
-        }
-      } catch(e) {}
-      setStatus('World not detected — enter manually', 'err');
-    }
+</div>
 
-    // ── Screen scan — using correct Alt1 API ──
-    //
-    // The real window.alt1 object exposes:
-    //   alt1.capture(x, y, w, h)  → Int32Array of BGRA pixels (or null if no permission)
-    //   alt1.rsWidth, alt1.rsHeight → RS client dimensions
-    //   alt1.currentWorld → current world number
-    //
-    // captureHtml does NOT exist. a1lib.captureHold wraps alt1.capture.
-    //
-    // Strategy: capture full screen → find parchment-colored dialog by pixel color
-    // → extract text via OCR using the dialogtext library or manual color parsing.
-    //
-    // Since we can't easily OCR in a plain HTML page without the npm build system,
-    // we use a DIAGNOSTIC approach: capture pixels, find the dialog region,
-    // then display the raw pixel coordinates so the user can confirm detection works,
-    // and simultaneously try the alt1 text activator path.
+<button class="btn btn-secondary" id="detectWorldBtn" title="Auto-detect world from game">⟳</button>
 
-    // ── Real Alt1 API (confirmed from diagnostic) ──
-    // alt1.getRegion(x, y, w, h)  → Int32Array of BGRA pixels
-    // alt1.bindReadString(x, y, w, h, font?) → reads RS text from screen region → string
-    // alt1.bindReadColorString(x, y, w, h) → reads colored RS text → string
+</div>
 
-    const PARCHMENT = { rMin:160, rMax:240, gMin:148, gMax:220, bMin:108, bMax:185 };
+</div>
 
-    function isParchment(r, g, b) {
-      return r >= PARCHMENT.rMin && r <= PARCHMENT.rMax
-          && g >= PARCHMENT.gMin && g <= PARCHMENT.gMax
-          && b >= PARCHMENT.bMin && b <= PARCHMENT.bMax;
-    }
+<!-- Scan section -->
 
-    // alt1.getRegion returns Int32Array — byte order confirmed by testing
-    // Try all 4 possible orderings: RGBA, BGRA, ARGB, ABGR
-    function bufToImgData(buf, w, h, order) {
-      const out = new Uint8ClampedArray(w * h * 4);
-      for (let i = 0; i < w * h; i++) {
-        const px = buf[i] >>> 0;
-        const b0 =  px        & 0xff;
-        const b1 = (px >>  8) & 0xff;
-        const b2 = (px >> 16) & 0xff;
-        const b3 = (px >> 24) & 0xff;
-        // order: which byte is R, G, B
-        if (order === 0) { out[i*4]=b2; out[i*4+1]=b1; out[i*4+2]=b0; } // BGRA (most common)
-        if (order === 1) { out[i*4]=b0; out[i*4+1]=b1; out[i*4+2]=b2; } // RGBA
-        if (order === 2) { out[i*4]=b1; out[i*4+1]=b2; out[i*4+2]=b3; } // ARGB
-        if (order === 3) { out[i*4]=b3; out[i*4+1]=b2; out[i*4+2]=b1; } // ABGR
-        out[i*4+3] = 255;
-      }
-      return { data: out, width: w, height: h };
-    }
+<div class="section">
 
-    function findDialogBounds(imgData) {
-      const { data, width, height } = imgData;
-      let minX = width, maxX = 0, minY = height, maxY = 0, hits = 0;
-      for (let y = 0; y < height; y += 3) {
-        for (let x = 0; x < width; x += 3) {
-          const i = (y * width + x) * 4;
-          if (isParchment(data[i], data[i+1], data[i+2])) {
-            hits++;
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-          }
-        }
-      }
-      const w = maxX - minX, h = maxY - minY;
-      console.log(`[StarScout] parchment hits:${hits} w:${w} h:${h}`);
-      if (hits < 50 || w < 100 || h < 20) return null;
-      return {
-        x: Math.max(0, minX - 10),
-        y: Math.max(0, minY - 10),
-        w: Math.min(width,  w + 20),
-        h: Math.min(height, h + 20),
-        hits
-      };
-    }
+<div class="section-label">Telescope Dialog</div>
 
-    function scanScreen() {
-      if (typeof alt1 === 'undefined') { simulateScan(); return; }
+<div style="display:flex; gap:8px;">
 
-      scanArea.className = 'scan-area scanning';
-      scanText.textContent = 'Step 1: Capturing pixels…';
-      setStatus('Capturing…');
-      scanBtn.disabled = true;
+<button class="btn btn-primary" id="scanBtn" style="flex:1;">
 
-      setTimeout(() => {
-        try {
-          const sw = alt1.rsWidth, sh = alt1.rsHeight;
-          const buf = alt1.getRegion(0, 0, sw, sh);
+◉ Scan Screen for Dialog
 
-          if (!buf || buf.length === 0) {
-            diagFail('"View screen" permission not active — right-click app spanner and enable it.');
-            return;
-          }
+</button>
 
-          // Sample several pixels at known locations to determine byte order
-          // We sample 20 pixels spread across the screen and log their raw values
-          const samples = [];
-          for (let i = 0; i < 20; i++) {
-            const idx = Math.floor((buf.length / 20) * i);
-            samples.push(`[${idx}]=0x${(buf[idx]>>>0).toString(16).padStart(8,'0')}`);
-          }
-          console.log('[StarScout] Pixel samples:', samples.join(' '));
-          console.log('[StarScout] buf.length:', buf.length, 'sw:', sw, 'sh:', sh);
+</div>
 
-          // Check if ALL pixels are zero (permission issue or wrong capture)
-          let nonZero = 0;
-          for (let i = 0; i < Math.min(buf.length, 10000); i++) {
-            if (buf[i] !== 0) nonZero++;
-          }
-          console.log('[StarScout] Non-zero pixels in first 10k:', nonZero);
+<div class="scan-area" id="scanArea" title="Click to scan">
 
-          if (nonZero === 0) {
-            diagFail(
-              'Pixel data is all zeros — screen capture is not working.\n\n' +
-              'In Alt1 Settings → Capture tab:\n' +
-              '• Make sure OpenGL is selected\n' +
-              '• Click the test button — it should say "successfully found home teleport"\n' +
-              '• If it fails, try Desktop capture mode instead\n\n' +
-              'Then reload this app and scan again.'
-            );
-            return;
-          }
+<div class="scan-pulse"></div>
 
-          scanText.textContent = `Step 2: ${nonZero} non-zero pixels. Trying all byte orders…`;
+<span id="scanText">Use your telescope in-game, then click Scan — or fill in fields below manually.</span>
 
-          // Try all 4 byte orderings and find whichever detects the dialog
-          let bounds = null;
-          let winOrder = -1;
-          for (let order = 0; order < 4; order++) {
-            const img = bufToImgData(buf, sw, sh, order);
-            // Log center pixel for this ordering
-            const ci = (Math.floor(sh/2) * sw + Math.floor(sw/2)) * 4;
-            console.log(`[StarScout] order=${order} center=(${img.data[ci]},${img.data[ci+1]},${img.data[ci+2]})`);
-            const b = findDialogBounds(img);
-            if (b) { bounds = b; winOrder = order; break; }
-          }
+</div>
 
-          console.log(`[StarScout] Winning order: ${winOrder}, bounds: ${JSON.stringify(bounds)}`);
+</div>
 
-          if (!bounds) {
-            // No parchment found — do a raw color dump of a 50x50 region in the
-            // center of the screen so we can see what colors are actually there
-            const cx = Math.floor(sw/2), cy = Math.floor(sh/2);
-            const img0 = bufToImgData(buf, sw, sh, 0);
-            const colorSamples = [];
-            for (let dy = -2; dy <= 2; dy++) {
-              for (let dx = -2; dx <= 2; dx++) {
-                const pi = ((cy+dy*20)*sw + (cx+dx*20))*4;
-                const d = img0.data;
-                colorSamples.push(`(${d[pi]},${d[pi+1]},${d[pi+2]})`);
-              }
-            }
-            console.log('[StarScout] Color grid (order 0):', colorSamples.join(' '));
-            diagFail(
-              `Step 2: No dialog found in ${nonZero} non-zero pixels.\n\n` +
-              `Center color samples (order 0): ${colorSamples.slice(0,6).join(' ')}\n\n` +
-              `Make sure the telescope dialog is open and visible on screen, then scan.\n` +
-              `Share the Dev Console output so we can tune the color range.`
-            );
-            return;
-          }
+<!-- Manual override -->
 
-          scanText.textContent = `Step 3: Dialog found (order ${winOrder}) at (${bounds.x},${bounds.y}) ${bounds.w}×${bounds.h}. Reading text…`;
-          doOCR(bounds);
+<div class="section">
 
-        } catch(err) {
-          console.error('[StarScout] scanScreen error:', err);
-          diagFail(`Scan error: ${err.message || String(err)}`);
-        }
-      }, 50);
-    }
+<div class="section-label">Manual Entry</div>
 
-    // ── STEP 2: Use bindReadString to OCR the dialog region ──
-    function doOCR(bounds) {
-      console.log(`[StarScout] Running OCR on bounds: ${JSON.stringify(bounds)}`);
+<div class="manual-grid">
 
-      try {
-        // bindReadString reads RS-rendered text from a screen region
-        // Returns a string of the text found, or empty string
-        const text = alt1.bindReadString(bounds.x, bounds.y, bounds.w, bounds.h);
-        console.log('[StarScout] bindReadString result:', JSON.stringify(text));
+<div class="field-wrap">
 
-        if (text && text.trim().length > 5) {
-          attemptParse(text.trim(), bounds);
-          return;
-        }
+<div class="field-label">Region</div>
 
-        // Try bindReadColorString as fallback
-        const ctext = alt1.bindReadColorString(bounds.x, bounds.y, bounds.w, bounds.h);
-        console.log('[StarScout] bindReadColorString result:', JSON.stringify(ctext));
+<select id="regionSelect">
 
-        if (ctext && ctext.trim().length > 5) {
-          // Color string may include color codes — strip them
-          const plain = ctext.replace(/<[^>]+>/g, '').replace(/\|[0-9a-f]{6}/gi, '').trim();
-          attemptParse(plain, bounds);
-          return;
-        }
+<option value="">— Select —</option>
 
-        // Dialog was visually found but OCR returned nothing — show preview
-        showDialogFoundNoText(bounds);
+<option value="Ana">Ana — Anachronia</option>
 
-      } catch(err) {
-        console.error('[StarScout] OCR error:', err);
-        diagFail(`OCR error: ${err.message || err}\nDialog was located but text could not be read.`);
-      }
-    }
+<option value="Asg">Asg — Asgarnia</option>
 
-    function showDialogFoundNoText(bounds) {
-      scanBtn.disabled = false;
-      scanArea.className = 'scan-area error';
-      scanText.innerHTML =
-        `<strong>Dialog located at (${bounds.x}, ${bounds.y}) — ${bounds.w}×${bounds.h}px</strong><br><br>` +
-        `bindReadString returned empty text.<br>` +
-        `This may mean the font isn't recognised or the dialog uses a non-standard font.<br><br>` +
-        `Please fill in the fields manually below.`;
-      setStatus(`Dialog found at (${bounds.x},${bounds.y}) but OCR returned empty`, 'err');
-    }
+<option value="Ash">Ash — Ashdale</option>
 
-    function diagFail(msg) {
-      scanBtn.disabled = false;
-      scanArea.className = 'scan-area error';
-      scanText.textContent = msg;
-      setStatus(msg.split('\n')[0], 'err');
-    }
+<option value="C/K">C/K — Crandor/Karamja</option>
 
-    function attemptParse(text, bounds) {
-      scanBtn.disabled = false;
-      const parsed = parseTelescopeText(text);
-      const found = parsed.region || parsed.size || parsed.time;
+<option value="Daem">Daem — Daemonheim</option>
 
-      if (found) {
-        if (parsed.region) regionSelect.value = parsed.region;
-        if (parsed.size)   sizeInput.value   = parsed.size;
-        if (parsed.time)   timeInput.value   = parsed.time;
+<option value="Des">Des — Kharidian Desert</option>
 
-        scanArea.className = 'scan-area success';
-        let summary = [];
-        if (parsed.region) summary.push(`Region: ${parsed.region}`);
-        if (parsed.size)   summary.push(`Size: ${parsed.size}`);
-        if (parsed.time)   summary.push(`Time: ${parsed.time} min`);
-        if (bounds) summary.push(`[${bounds.x},${bounds.y}]`);
-        scanText.textContent = '✓ ' + summary.join(' · ');
-        setStatus('Dialog parsed successfully', 'ok');
-        renderOutput();
-      } else {
-        // Show what text was found (helps debugging)
-        const preview = text ? text.substring(0, 120).replace(/\s+/g,' ') : '(empty)';
-        fallbackManual(`Dialog found but no star data matched.\nRead: "${preview}"`);
-      }
-    }
+<option value="F/L">F/L — Fremennik/Lunar Isle</option>
 
-    function fallbackManual(msg) {
-      scanBtn.disabled = false;
-      scanArea.className = 'scan-area error';
-      scanText.textContent = msg;
-      setStatus(msg, 'err');
-    }
+<option value="Feld">Feld — Feldip Hills</option>
 
-    // Dev/testing simulation outside Alt1
-    function simulateScan() {
-      scanArea.className = 'scan-area scanning';
-      scanText.textContent = 'Scanning…';
-      scanBtn.disabled = true;
-      setStatus('Simulating scan (no Alt1 detected)…');
+<option value="Grove">Grove — The Lost Grove</option>
 
-      setTimeout(() => {
-        // Matches confirmed in-game dialog format from screenshot
-        const sampleDialogs = [
-          'You see a shooting star! The star looks like it will land in Asgarnia in the next 37 to 39 minutes. The star looks to be size 7.',
-          'You see a shooting star! The star looks like it will land in Kandarin in the next 4 to 6 minutes. The star looks to be size 9.',
-          'You see a shooting star! The star looks like it will land in Crandor/Karamja in the next 12 to 14 minutes. The star looks to be size 5.',
-          'You see a shooting star! The star looks like it will land in Wilderness in the next 2 to 4 minutes. The star looks to be size 10.',
-          'You see a shooting star! The star looks like it will land in Misthalin in the next 18 to 20 minutes. The star looks to be size 3.',
-        ];
-        const sample = sampleDialogs[Math.floor(Math.random() * sampleDialogs.length)];
-        attemptParse(sample, null);
-        scanBtn.disabled = false;
-      }, 1200);
-    }
+<option value="Kand">Kand — Kandarin</option>
 
-    // ── Event listeners ──
-    worldInput.addEventListener('input', () => {
-      worldWrap.classList.toggle('has-value', worldInput.value.length > 0);
-      if (worldInput.value) {
-        worldDetect.classList.add('no-detect');
-        worldDetectLbl.textContent = 'manual';
-      }
-      renderOutput();
-    });
+<option value="M/M">M/M — Morytania/Mos Le'Harmless</option>
 
-    detectWorldBtn.addEventListener('click', detectWorld);
-    scanBtn.addEventListener('click', scanScreen);
-    scanArea.addEventListener('click', scanScreen);
+<option value="Mena">Mena — Menaphos</option>
 
-    regionSelect.addEventListener('change', renderOutput);
-    sizeInput.addEventListener('input', renderOutput);
-    timeInput.addEventListener('input', renderOutput);
+<option value="Mist">Mist — Misthalin</option>
 
-    copyBtn.addEventListener('click', () => {
-      const str = buildCallString();
-      if (!str) { setStatus('Nothing to copy yet!', 'err'); return; }
-      navigator.clipboard.writeText(str).then(() => {
-        copyFlash.classList.add('show');
-        setTimeout(() => copyFlash.classList.remove('show'), 2000);
-        setStatus('Copied: ' + str, 'ok');
-      }).catch(() => {
-        // Fallback for Alt1 browser
-        const ta = document.createElement('textarea');
-        ta.value = str;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        copyFlash.classList.add('show');
-        setTimeout(() => copyFlash.classList.remove('show'), 2000);
-        setStatus('Copied: ' + str, 'ok');
-      });
-    });
+<option value="PGT">PGT — Piscatoris/Gnome/Tirannwn</option>
 
-    clearBtn.addEventListener('click', () => {
-      worldInput.value = '';
-      worldWrap.classList.remove('has-value');
-      regionSelect.value = '';
-      sizeInput.value = '';
-      timeInput.value = '';
-      scanArea.className = 'scan-area';
-      scanText.textContent = 'Use your telescope in-game, then click Scan — or fill in fields below manually.';
-      worldDetect.classList.add('no-detect');
-      worldDetectLbl.textContent = 'manual';
-      setStatus('Cleared');
-      renderOutput();
-    });
+<option value="Wend">Wend — Wendlewick</option>
 
-    // ── Init ──
-    detectWorld();
-    setStatus('Ready — use telescope then scan, or enter manually');
-  </script>
+<option value="Wild">Wild — Wilderness</option>
+
+</select>
+
+</div>
+
+<div class="field-wrap">
+
+<div class="field-label">Size (1–10)</div>
+
+<input type="number" class="small" id="sizeInput" min="1" max="10" placeholder="e.g. 7" />
+
+</div>
+
+<div class="field-wrap">
+
+<div class="field-label">Relative Time (min)</div>
+
+<input type="number" class="small" id="timeInput" min="0" max="120" placeholder="e.g. 8" />
+
+</div>
+
+</div>
+
+</div>
+
+<!-- Output -->
+
+<div class="output-section">
+
+<div class="section-label" style="margin-bottom:8px;">Discord /call Output</div>
+
+<div class="output-box empty" id="outputBox">
+
+Fill in the fields above to generate your call…
+
+</div>
+
+<div class="copy-row">
+
+<button class="btn btn-primary" id="copyBtn">⎘ Copy to Clipboard</button>
+
+<button class="btn btn-secondary" id="clearBtn">✕ Clear</button>
+
+</div>
+
+</div>
+
+<div class="divider"></div>
+
+<!-- Status bar -->
+
+<div class="status-bar">
+
+<div class="status-indicator" id="statusDot"></div>
+
+<span id="statusText">Ready — waiting for scan or input</span>
+
+</div>
+
+<!-- Copy flash -->
+
+<div class="copy-flash" id="copyFlash">✓ Copied to clipboard!</div>
+
+<script>
+
+// ── Region name → abbreviation map ──
+
+const REGION_MAP = {
+
+'anachronia': 'Ana',
+
+'asgarnia': 'Asg',
+
+'ashdale': 'Ash',
+
+'crandor': 'C/K',
+
+'karamja': 'C/K',
+
+'crandor/karamja': 'C/K',
+
+'karamja/crandor': 'C/K',
+
+'daemonheim': 'Daem',
+
+'kharidian desert': 'Des',
+
+'desert': 'Des',
+
+'fremennik': 'F/L',
+
+'lunar isle': 'F/L',
+
+'fremennik/lunar isle': 'F/L',
+
+'lunar': 'F/L',
+
+'feldip hills': 'Feld',
+
+'feldip': 'Feld',
+
+'lost grove': 'Grove',
+
+'the lost grove': 'Grove',
+
+'kandarin': 'Kand',
+
+'morytania': 'M/M',
+
+"mos le'harmless": 'M/M',
+
+"morytania/mos le'harmless": 'M/M',
+
+'mos le harmless': 'M/M',
+
+'menaphos': 'Mena',
+
+'misthalin': 'Mist',
+
+'piscatoris': 'PGT',
+
+'gnome stronghold': 'PGT',
+
+'tirannwn': 'PGT',
+
+'piscatoris/gnome stronghold/tirannwn': 'PGT',
+
+'wendlewick': 'Wend',
+
+'wilderness': 'Wild',
+
+};
+
+function lookupRegion(raw) {
+
+const lower = raw.toLowerCase().trim();
+
+if (REGION_MAP[lower]) return REGION_MAP[lower];
+
+for (const [key, abbr] of Object.entries(REGION_MAP)) {
+
+if (lower.includes(key) || key.includes(lower)) return abbr;
+
+}
+
+return null;
+
+}
+
+// ── Parse telescope dialog text ──
+
+function parseTelescopeText(text) {
+
+const result = { region: null, size: null, time: null, rawText: text };
+
+if (!text) return result;
+
+const t = text.replace(/\n/g, ' ').replace(/\s+/g, ' ');
+
+const regionPattern = new RegExp(
+
+Object.keys(REGION_MAP).sort((a,b) => b.length - a.length)
+
+.map(k => k.replace(/[/()']/g, s => '\\' + s))
+
+.join('|'),
+
+'i'
+
+);
+
+const regionMatch = t.match(regionPattern);
+
+if (regionMatch) result.region = lookupRegion(regionMatch[0]);
+
+const sizeMatch = t.match(/\bto be size (\d{1,2})\b/i)
+
+|| t.match(/\bsize[:\s]+(\d{1,2})\b/i);
+
+if (sizeMatch) result.size = parseInt(sizeMatch[1]);
+
+const rangeMatch = t.match(/(\d{1,3})\s+to\s+(\d{1,3})\s+minutes?/i);
+
+if (rangeMatch) {
+
+result.time = parseInt(rangeMatch[1]);
+
+} else {
+
+const singleMatch = t.match(/(\d{1,3})\s*minutes?/i);
+
+if (singleMatch) result.time = parseInt(singleMatch[1]);
+
+}
+
+return result;
+
+}
+
+// ── UI state ──
+
+let worldFromGameState = null;
+
+const worldInput      = document.getElementById('worldInput');
+
+const worldWrap       = document.getElementById('worldWrap');
+
+const worldDetect     = document.getElementById('worldDetect');
+
+const worldDetectLbl  = document.getElementById('worldDetectLabel');
+
+const detectWorldBtn  = document.getElementById('detectWorldBtn');
+
+const scanBtn         = document.getElementById('scanBtn');
+
+const scanArea        = document.getElementById('scanArea');
+
+const scanText        = document.getElementById('scanText');
+
+const regionSelect    = document.getElementById('regionSelect');
+
+const sizeInput       = document.getElementById('sizeInput');
+
+const timeInput       = document.getElementById('timeInput');
+
+const outputBox       = document.getElementById('outputBox');
+
+const copyBtn         = document.getElementById('copyBtn');
+
+const clearBtn        = document.getElementById('clearBtn');
+
+const statusDot       = document.getElementById('statusDot');
+
+const statusText      = document.getElementById('statusText');
+
+const copyFlash       = document.getElementById('copyFlash');
+
+function setStatus(msg, type = 'idle') {
+
+statusText.textContent = msg;
+
+statusDot.className = 'status-indicator' + (type === 'ok' ? ' ok' : type === 'err' ? ' err' : '');
+
+}
+
+function buildCallString() {
+
+const world  = worldInput.value.trim();
+
+const region = regionSelect.value;
+
+const size   = sizeInput.value.trim();
+
+const time   = timeInput.value.trim();
+
+if (!world && !region && !size && !time) return null;
+
+let parts = ['/call'];
+
+if (world)  parts.push(`world: ${world}`);
+
+if (region) parts.push(`region: ${region}`);
+
+if (size)   parts.push(`size: ${size}`);
+
+if (time)   parts.push(`relative-time: ${time}`);
+
+return parts.join(' ');
+
+}
+
+function renderOutput() {
+
+const str = buildCallString();
+
+if (!str) {
+
+outputBox.className = 'output-box empty';
+
+outputBox.textContent = 'Fill in the fields above to generate your call…';
+
+return;
+
+}
+
+outputBox.className = 'output-box';
+
+outputBox.innerHTML = str.split(' ').map(token => {
+
+if (token.startsWith('/')) return `<span style="color:var(--star-blue);font-weight:700">${token}</span>`;
+
+if (token.endsWith(':'))  return `<span class="tag">${token}</span>`;
+
+return `<span>${token}</span>`;
+
+}).join(' ');
+
+}
+
+// ── World detection ──
+
+function detectWorld() {
+
+try {
+
+if (typeof alt1 !== 'undefined' && alt1.currentWorld) {
+
+const w = alt1.currentWorld;
+
+if (w && w > 0) {
+
+worldInput.value = w;
+
+worldWrap.classList.add('has-value');
+
+worldDetect.classList.remove('no-detect');
+
+worldDetectLbl.textContent = 'detected';
+
+worldFromGameState = w;
+
+setStatus(`World ${w} detected from game`, 'ok');
+
+renderOutput();
+
+return;
+
+}
+
+}
+
+} catch(e) {}
+
+try {
+
+if (window.alt1 && window.alt1.currentWorld) {
+
+const w = window.alt1.currentWorld;
+
+if (w && w > 0) {
+
+worldInput.value = w;
+
+worldWrap.classList.add('has-value');
+
+worldDetect.classList.remove('no-detect');
+
+worldDetectLbl.textContent = 'detected';
+
+setStatus(`World ${w} detected from game`, 'ok');
+
+renderOutput();
+
+return;
+
+}
+
+}
+
+} catch(e) {}
+
+setStatus('World not detected — enter manually', 'err');
+
+}
+
+// ── Exact RS HSL-derived color anchors ──
+//
+// These come directly from in-game color values converted via the Jagex
+// RS HSL system (H: 0-63, S: 0-7, L: 0-127):
+//
+//   RS HSL (6, 2, 92)  → RGB(205, 187, 165) — dialogue border / parchment tan
+//   RS HSL (7, 1, 19)  → RGB( 44,  40,  33) — dark frame shadow / outer edge
+//   RS HSL (7, 3, 121) → RGB(248, 245, 238) — "Next" button near-white highlight
+//
+// Tolerance of ±10 to account for minor gamma/rendering variation between
+// machines while still being tight enough to avoid false positives.
+
+const COLOR_BORDER = [205, 187, 165];
+const COLOR_SHADOW = [ 44,  40,  33];
+const COLOR_NEXT   = [248, 245, 238];
+const TOLERANCE    = 10;
+
+function colorClose(r, g, b, target) {
+
+return Math.abs(r - target[0]) <= TOLERANCE
+
+    && Math.abs(g - target[1]) <= TOLERANCE
+
+    && Math.abs(b - target[2]) <= TOLERANCE;
+
+}
+
+// Matches either the border tan OR the dark shadow edge
+function isDialogPixel(r, g, b) {
+
+return colorClose(r, g, b, COLOR_BORDER)
+
+    || colorClose(r, g, b, COLOR_SHADOW);
+
+}
+
+// ── Byte-order normalisation ──
+// alt1.getRegion returns Int32Array. Try all 4 orderings; caller picks the winner.
+
+function bufToImgData(buf, w, h, order) {
+
+const out = new Uint8ClampedArray(w * h * 4);
+
+for (let i = 0; i < w * h; i++) {
+
+const px = buf[i] >>> 0;
+
+const b0 = (px)       & 0xff;
+
+const b1 = (px >>  8) & 0xff;
+
+const b2 = (px >> 16) & 0xff;
+
+const b3 = (px >> 24) & 0xff;
+
+if (order === 0) { out[i*4]=b2; out[i*4+1]=b1; out[i*4+2]=b0; } // BGRA
+if (order === 1) { out[i*4]=b0; out[i*4+1]=b1; out[i*4+2]=b2; } // RGBA
+if (order === 2) { out[i*4]=b1; out[i*4+1]=b2; out[i*4+2]=b3; } // ARGB
+if (order === 3) { out[i*4]=b3; out[i*4+1]=b2; out[i*4+2]=b1; } // ABGR
+
+out[i*4+3] = 255;
+
+}
+
+return { data: out, width: w, height: h };
+
+}
+
+// ── Dialog bounds detection ──
+// Scans for the RS dialogue frame using the exact color anchors above.
+// Returns { x, y, w, h, hits, hasNextButton } or null.
+
+function findDialogBounds(imgData) {
+
+const { data, width, height } = imgData;
+
+let minX = width, maxX = 0, minY = height, maxY = 0, hits = 0;
+
+for (let y = 0; y < height; y += 3) {
+
+for (let x = 0; x < width; x += 3) {
+
+const i = (y * width + x) * 4;
+
+if (isDialogPixel(data[i], data[i+1], data[i+2])) {
+
+hits++;
+
+if (x < minX) minX = x;
+
+if (x > maxX) maxX = x;
+
+if (y < minY) minY = y;
+
+if (y > maxY) maxY = y;
+
+}
+
+}
+
+}
+
+const w = maxX - minX;
+
+const h = maxY - minY;
+
+console.log(`[StarScout] dialog pixel hits:${hits} w:${w} h:${h}`);
+
+// Raised thresholds now that colors are exact — fewer but more reliable hits
+if (hits < 80 || w < 150 || h < 40) return null;
+
+// ── Next button detection ──
+// Scan the lower-right quadrant of the found dialog for the near-white
+// button highlight (RS HSL 7,3,121 → RGB 248,245,238)
+
+let hasNextButton = false;
+
+const btnCheckX     = Math.floor((minX + maxX) / 2);
+
+const btnCheckYStart = minY + Math.floor(h * 0.6);
+
+outer:
+
+for (let y = btnCheckYStart; y <= maxY; y += 2) {
+
+for (let x = btnCheckX; x <= maxX; x += 2) {
+
+const i = (y * width + x) * 4;
+
+if (colorClose(data[i], data[i+1], data[i+2], COLOR_NEXT)) {
+
+hasNextButton = true;
+
+break outer;
+
+}
+
+}
+
+}
+
+console.log(`[StarScout] hasNextButton:${hasNextButton}`);
+
+return {
+
+x: Math.max(0, minX - 10),
+
+y: Math.max(0, minY - 10),
+
+w: Math.min(width,  w + 20),
+
+h: Math.min(height, h + 20),
+
+hits,
+
+hasNextButton,
+
+};
+
+}
+
+// ── Main scan entry point ──
+
+function scanScreen() {
+
+if (typeof alt1 === 'undefined') { simulateScan(); return; }
+
+scanArea.className = 'scan-area scanning';
+
+scanText.textContent = 'Step 1: Capturing pixels…';
+
+setStatus('Capturing…');
+
+scanBtn.disabled = true;
+
+setTimeout(() => {
+
+try {
+
+const sw = alt1.rsWidth, sh = alt1.rsHeight;
+
+const buf = alt1.getRegion(0, 0, sw, sh);
+
+if (!buf || buf.length === 0) {
+
+diagFail('"View screen" permission not active — right-click app spanner and enable it.');
+
+return;
+
+}
+
+// Sanity-check: are any pixels non-zero?
+
+let nonZero = 0;
+
+for (let i = 0; i < Math.min(buf.length, 10000); i++) {
+
+if (buf[i] !== 0) nonZero++;
+
+}
+
+console.log(`[StarScout] buf.length:${buf.length} sw:${sw} sh:${sh} nonZero(10k):${nonZero}`);
+
+if (nonZero === 0) {
+
+diagFail(
+
+'Pixel data is all zeros — screen capture is not working.\n\n' +
+
+'In Alt1 Settings → Capture tab:\n' +
+
+'• Make sure OpenGL is selected\n' +
+
+'• Click the test button — it should say "successfully found home teleport"\n' +
+
+'• If it fails, try Desktop capture mode instead\n\n' +
+
+'Then reload this app and scan again.'
+
+);
+
+return;
+
+}
+
+scanText.textContent = `Step 2: ${nonZero} non-zero pixels found. Detecting byte order…`;
+
+// Try all 4 byte orderings; use the first one that finds the dialog
+
+let bounds    = null;
+
+let winOrder  = -1;
+
+for (let order = 0; order < 4; order++) {
+
+const img = bufToImgData(buf, sw, sh, order);
+
+// Log center pixel for diagnostics
+
+const ci = (Math.floor(sh/2) * sw + Math.floor(sw/2)) * 4;
+
+console.log(`[StarScout] order=${order} center=(${img.data[ci]},${img.data[ci+1]},${img.data[ci+2]})`);
+
+const b = findDialogBounds(img);
+
+if (b) { bounds = b; winOrder = order; break; }
+
+}
+
+console.log(`[StarScout] winOrder:${winOrder} bounds:${JSON.stringify(bounds)}`);
+
+if (!bounds) {
+
+// Dump a colour grid so we can tune if needed
+
+const cx = Math.floor(sw/2), cy = Math.floor(sh/2);
+
+const img0 = bufToImgData(buf, sw, sh, 0);
+
+const colorSamples = [];
+
+for (let dy = -2; dy <= 2; dy++) {
+
+for (let dx = -2; dx <= 2; dx++) {
+
+const pi = ((cy + dy*20) * sw + (cx + dx*20)) * 4;
+
+const d  = img0.data;
+
+colorSamples.push(`(${d[pi]},${d[pi+1]},${d[pi+2]})`);
+
+}
+
+}
+
+console.log('[StarScout] color grid (order 0):', colorSamples.join(' '));
+
+diagFail(
+
+`Step 2: No dialog found in ${nonZero} non-zero pixels.\n\n` +
+
+`Center color samples (order 0): ${colorSamples.slice(0,6).join(' ')}\n\n` +
+
+`Make sure the telescope dialog is open and fully visible on screen, then scan.\n` +
+
+`Share the Dev Console output so we can tune the color values.`
+
+);
+
+return;
+
+}
+
+scanText.textContent = `Step 3: Dialog found (order ${winOrder}) at (${bounds.x},${bounds.y}) ${bounds.w}×${bounds.h} — hasNext:${bounds.hasNextButton}. Reading text…`;
+
+doOCR(bounds);
+
+} catch(err) {
+
+console.error('[StarScout] scanScreen error:', err);
+
+diagFail(`Scan error: ${err.message || String(err)}`);
+
+}
+
+}, 50);
+
+}
+
+// ── OCR the located dialog region ──
+
+function doOCR(bounds) {
+
+console.log(`[StarScout] OCR bounds:${JSON.stringify(bounds)} hasNextButton:${bounds.hasNextButton}`);
+
+try {
+
+const text = alt1.bindReadString(bounds.x, bounds.y, bounds.w, bounds.h);
+
+console.log('[StarScout] bindReadString:', JSON.stringify(text));
+
+if (text && text.trim().length > 5) {
+
+attemptParse(text.trim(), bounds);
+
+return;
+
+}
+
+const ctext = alt1.bindReadColorString(bounds.x, bounds.y, bounds.w, bounds.h);
+
+console.log('[StarScout] bindReadColorString:', JSON.stringify(ctext));
+
+if (ctext && ctext.trim().length > 5) {
+
+const plain = ctext.replace(/<[^>]+>/g, '').replace(/\|[0-9a-f]{6}/gi, '').trim();
+
+attemptParse(plain, bounds);
+
+return;
+
+}
+
+showDialogFoundNoText(bounds);
+
+} catch(err) {
+
+console.error('[StarScout] OCR error:', err);
+
+diagFail(`OCR error: ${err.message || err}\nDialog was located but text could not be read.`);
+
+}
+
+}
+
+function showDialogFoundNoText(bounds) {
+
+scanBtn.disabled = false;
+
+scanArea.className = 'scan-area error';
+
+scanText.innerHTML =
+
+`<strong>Dialog located at (${bounds.x}, ${bounds.y}) — ${bounds.w}×${bounds.h}px</strong><br><br>` +
+
+`bindReadString returned empty text.<br>` +
+
+`This may mean the font isn't recognised or the dialog uses a non-standard font.<br><br>` +
+
+`Please fill in the fields manually below.`;
+
+setStatus(`Dialog found at (${bounds.x},${bounds.y}) but OCR returned empty`, 'err');
+
+}
+
+function diagFail(msg) {
+
+scanBtn.disabled = false;
+
+scanArea.className = 'scan-area error';
+
+scanText.textContent = msg;
+
+setStatus(msg.split('\n')[0], 'err');
+
+}
+
+function attemptParse(text, bounds) {
+
+scanBtn.disabled = false;
+
+const parsed = parseTelescopeText(text);
+
+const found  = parsed.region || parsed.size || parsed.time;
+
+if (found) {
+
+if (parsed.region) regionSelect.value = parsed.region;
+
+if (parsed.size)   sizeInput.value    = parsed.size;
+
+if (parsed.time)   timeInput.value    = parsed.time;
+
+scanArea.className = 'scan-area success';
+
+let summary = [];
+
+if (parsed.region) summary.push(`Region: ${parsed.region}`);
+
+if (parsed.size)   summary.push(`Size: ${parsed.size}`);
+
+if (parsed.time)   summary.push(`Time: ${parsed.time} min`);
+
+if (bounds)        summary.push(`[${bounds.x},${bounds.y}]`);
+
+scanText.textContent = '✓ ' + summary.join(' · ');
+
+setStatus('Dialog parsed successfully', 'ok');
+
+renderOutput();
+
+} else {
+
+const preview = text ? text.substring(0, 120).replace(/\s+/g,' ') : '(empty)';
+
+fallbackManual(`Dialog found but no star data matched.\nRead: "${preview}"`);
+
+}
+
+}
+
+function fallbackManual(msg) {
+
+scanBtn.disabled = false;
+
+scanArea.className = 'scan-area error';
+
+scanText.textContent = msg;
+
+setStatus(msg, 'err');
+
+}
+
+// ── Dev/browser simulation (no Alt1) ──
+
+function simulateScan() {
+
+scanArea.className = 'scan-area scanning';
+
+scanText.textContent = 'Scanning…';
+
+scanBtn.disabled = true;
+
+setStatus('Simulating scan (no Alt1 detected)…');
+
+setTimeout(() => {
+
+const sampleDialogs = [
+
+'You see a shooting star! The star looks like it will land in Asgarnia in the next 37 to 39 minutes. The star looks to be size 7.',
+
+'You see a shooting star! The star looks like it will land in Kandarin in the next 4 to 6 minutes. The star looks to be size 9.',
+
+'You see a shooting star! The star looks like it will land in Crandor/Karamja in the next 12 to 14 minutes. The star looks to be size 5.',
+
+'You see a shooting star! The star looks like it will land in Wilderness in the next 2 to 4 minutes. The star looks to be size 10.',
+
+'You see a shooting star! The star looks like it will land in Misthalin in the next 18 to 20 minutes. The star looks to be size 3.',
+
+];
+
+const sample = sampleDialogs[Math.floor(Math.random() * sampleDialogs.length)];
+
+attemptParse(sample, null);
+
+scanBtn.disabled = false;
+
+}, 1200);
+
+}
+
+// ── Event listeners ──
+
+worldInput.addEventListener('input', () => {
+
+worldWrap.classList.toggle('has-value', worldInput.value.length > 0);
+
+if (worldInput.value) {
+
+worldDetect.classList.add('no-detect');
+
+worldDetectLbl.textContent = 'manual';
+
+}
+
+renderOutput();
+
+});
+
+detectWorldBtn.addEventListener('click', detectWorld);
+
+scanBtn.addEventListener('click', scanScreen);
+
+scanArea.addEventListener('click', scanScreen);
+
+regionSelect.addEventListener('change', renderOutput);
+
+sizeInput.addEventListener('input', renderOutput);
+
+timeInput.addEventListener('input', renderOutput);
+
+copyBtn.addEventListener('click', () => {
+
+const str = buildCallString();
+
+if (!str) { setStatus('Nothing to copy yet!', 'err'); return; }
+
+navigator.clipboard.writeText(str).then(() => {
+
+copyFlash.classList.add('show');
+
+setTimeout(() => copyFlash.classList.remove('show'), 2000);
+
+setStatus('Copied: ' + str, 'ok');
+
+}).catch(() => {
+
+const ta = document.createElement('textarea');
+
+ta.value = str;
+
+document.body.appendChild(ta);
+
+ta.select();
+
+document.execCommand('copy');
+
+document.body.removeChild(ta);
+
+copyFlash.classList.add('show');
+
+setTimeout(() => copyFlash.classList.remove('show'), 2000);
+
+setStatus('Copied: ' + str, 'ok');
+
+});
+
+});
+
+clearBtn.addEventListener('click', () => {
+
+worldInput.value = '';
+
+worldWrap.classList.remove('has-value');
+
+regionSelect.value = '';
+
+sizeInput.value    = '';
+
+timeInput.value    = '';
+
+scanArea.className = 'scan-area';
+
+scanText.textContent = 'Use your telescope in-game, then click Scan — or fill in fields below manually.';
+
+worldDetect.classList.add('no-detect');
+
+worldDetectLbl.textContent = 'manual';
+
+setStatus('Cleared');
+
+renderOutput();
+
+});
+
+// ── Init ──
+
+detectWorld();
+
+setStatus('Ready — use telescope then scan, or enter manually');
+
+</script>
+
 </body>
+
 </html>
