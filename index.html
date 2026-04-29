@@ -1268,93 +1268,119 @@ return { data: out, width: w, height: h };
 }
 
 // ── Dialog bounds detection ──
-// Scans for the RS dialogue frame using the exact color anchors above.
-// Returns { x, y, w, h, hits, hasNextButton } or null.
+//
+// Receives a pre-cropped ImageData covering only the bottom third of the
+// RS client. Scans for the dark top-band of the dialog (the most distinct
+// horizontal feature), then measures parchment body below it, and checks
+// for the golden button in the lower portion.
+//
+// Returns { x, y, w, h, hasNextButton } in SCREEN coordinates, or null.
 
-function findDialogBounds(imgData) {
+function findDialogBounds(imgData, cropOffsetX, cropOffsetY) {
 
-const { data, width, height } = imgData;
+  const { data, width, height } = imgData;
 
-let minX = width, maxX = 0, minY = height, maxY = 0, hits = 0;
+  // ── Pass 1: find the dark top-band ──
+  // Scan left→right, top→bottom for a horizontal run of dark-band pixels
+  // that is at least 120px wide — that's the top frame of the dialog.
 
-for (let y = 0; y < height; y += 3) {
+  let topBandY = -1;
+  let topBandX = -1;
+  let topBandW = 0;
 
-for (let x = 0; x < width; x += 3) {
+  for (let y = 0; y < height && topBandY === -1; y++) {
+    let runStart = -1, runLen = 0;
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      if (isDarkBand(data[i], data[i+1], data[i+2])) {
+        if (runStart === -1) runStart = x;
+        runLen++;
+      } else {
+        if (runLen >= 120) {
+          topBandY = y;
+          topBandX = runStart;
+          topBandW = runLen;
+          break;
+        }
+        runStart = -1; runLen = 0;
+      }
+    }
+    // catch run that extends to edge
+    if (runLen >= 120 && topBandY === -1) {
+      topBandY = y; topBandX = runStart; topBandW = runLen;
+    }
+  }
 
-const i = (y * width + x) * 4;
+  if (topBandY === -1) {
+    console.log('[StarScout] findDialogBounds: no dark top-band found');
+    return null;
+  }
 
-if (isDialogPixel(data[i], data[i+1], data[i+2])) {
+  console.log(`[StarScout] dark top-band at y=${topBandY} x=${topBandX} w=${topBandW}`);
 
-hits++;
+  // ── Pass 2: measure parchment body below the top-band ──
+  // Walk downward from topBandY until parchment pixels stop.
+  // Also track min/max X of parchment to get dialog width.
 
-if (x < minX) minX = x;
+  let bodyMinX = topBandX;
+  let bodyMaxX = topBandX + topBandW;
+  let bodyMaxY = topBandY;
 
-if (x > maxX) maxX = x;
+  for (let y = topBandY + 1; y < height; y++) {
+    let rowHits = 0;
+    let rowMinX = width, rowMaxX = 0;
+    for (let x = topBandX - 20; x < topBandX + topBandW + 20 && x < width; x++) {
+      if (x < 0) continue;
+      const i = (y * width + x) * 4;
+      if (isParchment(data[i], data[i+1], data[i+2]) || isDarkBand(data[i], data[i+1], data[i+2])) {
+        rowHits++;
+        if (x < rowMinX) rowMinX = x;
+        if (x > rowMaxX) rowMaxX = x;
+      }
+    }
+    // Stop if this row has almost nothing matching
+    if (rowHits < 10) break;
+    bodyMaxY = y;
+    if (rowMinX < bodyMinX) bodyMinX = rowMinX;
+    if (rowMaxX > bodyMaxX) bodyMaxX = rowMaxX;
+  }
 
-if (y < minY) minY = y;
+  const dialogW = bodyMaxX - bodyMinX;
+  const dialogH = bodyMaxY - topBandY;
 
-if (y > maxY) maxY = y;
+  console.log(`[StarScout] dialog body: x=${bodyMinX} w=${dialogW} h=${dialogH}`);
 
-}
+  if (dialogW < 150 || dialogH < 40) {
+    console.log('[StarScout] findDialogBounds: dialog too small, rejecting');
+    return null;
+  }
 
-}
+  // ── Pass 3: check for golden button in lower 40% of dialog ──
 
-}
+  let hasNextButton = false;
+  const btnYStart = topBandY + Math.floor(dialogH * 0.6);
 
-const w = maxX - minX;
+  outer:
+  for (let y = btnYStart; y <= bodyMaxY; y++) {
+    for (let x = bodyMinX; x <= bodyMaxX; x += 2) {
+      const i = (y * width + x) * 4;
+      if (isGoldenButton(data[i], data[i+1], data[i+2])) {
+        hasNextButton = true;
+        break outer;
+      }
+    }
+  }
 
-const h = maxY - minY;
+  console.log(`[StarScout] hasNextButton:${hasNextButton}`);
 
-console.log(`[StarScout] dialog pixel hits:${hits} w:${w} h:${h}`);
-
-// Wide parchment range produces many hits — require meaningful coverage
-if (hits < 200 || w < 150 || h < 40) return null;
-
-// ── Golden button detection ──
-// Scan the lower half of the found dialog for the amber/gold button.
-// Searches center-wide (not just right half) since button is centered.
-
-let hasNextButton = false;
-
-const btnCheckYStart = minY + Math.floor(h * 0.55);
-
-outer:
-
-for (let y = btnCheckYStart; y <= maxY; y += 2) {
-
-for (let x = minX; x <= maxX; x += 2) {
-
-const i = (y * width + x) * 4;
-
-if (isGoldenButton(data[i], data[i+1], data[i+2])) {
-
-hasNextButton = true;
-
-break outer;
-
-}
-
-}
-
-}
-
-console.log(`[StarScout] hasNextButton:${hasNextButton}`);
-
-return {
-
-x: Math.max(0, minX - 10),
-
-y: Math.max(0, minY - 10),
-
-w: Math.min(width,  w + 20),
-
-h: Math.min(height, h + 20),
-
-hits,
-
-hasNextButton,
-
-};
+  // Return coordinates in screen space (add crop offsets back)
+  return {
+    x: cropOffsetX + Math.max(0, bodyMinX - 5),
+    y: cropOffsetY + Math.max(0, topBandY - 5),
+    w: dialogW + 10,
+    h: dialogH + 10,
+    hasNextButton,
+  };
 
 }
 
@@ -1362,150 +1388,122 @@ hasNextButton,
 
 function scanScreen() {
 
-if (typeof alt1 === 'undefined') { simulateScan(); return; }
+  if (typeof alt1 === 'undefined') { simulateScan(); return; }
 
-scanArea.className = 'scan-area scanning';
+  scanArea.className = 'scan-area scanning';
+  scanText.textContent = 'Step 1: Locating RS window…';
+  setStatus('Capturing…');
+  scanBtn.disabled = true;
 
-scanText.textContent = 'Step 1: Capturing pixels…';
+  setTimeout(() => {
+    try {
 
-setStatus('Capturing…');
+      // ── Step 1: Locate the RS window via Alt1 ──
+      // alt1.rsX/rsY is the top-left screen position of the RS client.
+      // alt1.rsWidth/rsHeight is its size. Returns -1 if RS not detected.
 
-scanBtn.disabled = true;
+      const rsX = alt1.rsX;
+      const rsY = alt1.rsY;
+      const rsW = alt1.rsWidth;
+      const rsH = alt1.rsHeight;
 
-setTimeout(() => {
+      console.log(`[StarScout] RS window: x=${rsX} y=${rsY} w=${rsW} h=${rsH}`);
 
-try {
+      if (rsW <= 0 || rsH <= 0) {
+        diagFail(
+          'RuneScape window not detected by Alt1.\n\n' +
+          'Make sure RuneScape is open and Alt1 has found it.\n' +
+          'Check the Alt1 toolbar — it should show the RS world number.'
+        );
+        return;
+      }
 
-const sw = alt1.rsWidth, sh = alt1.rsHeight;
+      // ── Step 2: Capture only the bottom ~45% of the RS client ──
+      // The telescope dialog always appears in the lower portion of the screen.
+      // Capturing just this region is faster and avoids false positives from
+      // warm-colored UI elements elsewhere (inventory, chat, skill guide, etc).
 
-const buf = alt1.getRegion(0, 0, sw, sh);
+      const cropY = Math.floor(rsH * 0.55);
+      const cropH = rsH - cropY;
+      const absX  = rsX;
+      const absY  = rsY + cropY;
 
-if (!buf || buf.length === 0) {
+      console.log(`[StarScout] Crop region: absX=${absX} absY=${absY} w=${rsW} h=${cropH}`);
 
-diagFail('"View screen" permission not active — right-click app spanner and enable it.');
+      scanText.textContent = `Step 2: RS window ${rsW}×${rsH}. Capturing bottom third…`;
 
-return;
+      const buf = alt1.getRegion(absX, absY, rsW, cropH);
 
-}
+      if (!buf || buf.length === 0) {
+        diagFail('"View screen" permission not active — right-click the app spanner icon and enable it.');
+        return;
+      }
 
-// Sanity-check: are any pixels non-zero?
+      let nonZero = 0;
+      for (let i = 0; i < Math.min(buf.length, 5000); i++) {
+        if (buf[i] !== 0) nonZero++;
+      }
+      console.log(`[StarScout] buf.length:${buf.length} nonZero(5k):${nonZero}`);
 
-let nonZero = 0;
+      if (nonZero === 0) {
+        diagFail(
+          'Pixel data is all zeros — screen capture not working.\n\n' +
+          'In Alt1 Settings → Capture tab:\n' +
+          '• Make sure OpenGL capture is selected\n' +
+          '• Click the test button — should say "successfully found home teleport"\n' +
+          '• If it fails, try Desktop capture mode\n\n' +
+          'Then reload and scan again.'
+        );
+        return;
+      }
 
-for (let i = 0; i < Math.min(buf.length, 10000); i++) {
+      // ── Step 3: Try all 4 byte orderings, search cropped region for dialog ──
 
-if (buf[i] !== 0) nonZero++;
+      scanText.textContent = `Step 3: ${nonZero} non-zero pixels. Scanning for dialog…`;
 
-}
+      let bounds   = null;
+      let winOrder = -1;
 
-console.log(`[StarScout] buf.length:${buf.length} sw:${sw} sh:${sh} nonZero(10k):${nonZero}`);
+      for (let order = 0; order < 4; order++) {
+        const img = bufToImgData(buf, rsW, cropH, order);
+        const ci  = (Math.floor(cropH / 2) * rsW + Math.floor(rsW / 2)) * 4;
+        console.log(`[StarScout] order=${order} cropCenter=(${img.data[ci]},${img.data[ci+1]},${img.data[ci+2]})`);
+        const b = findDialogBounds(img, absX, absY);
+        if (b) { bounds = b; winOrder = order; break; }
+      }
 
-if (nonZero === 0) {
+      console.log(`[StarScout] winOrder:${winOrder} bounds:${JSON.stringify(bounds)}`);
 
-diagFail(
+      if (!bounds) {
+        const img0    = bufToImgData(buf, rsW, cropH, 0);
+        const midY    = Math.floor(cropH / 2);
+        const samples = [];
+        for (let dx = -4; dx <= 4; dx++) {
+          const px = Math.floor(rsW / 2) + dx * 30;
+          const pi = (midY * rsW + px) * 4;
+          samples.push(`(${img0.data[pi]},${img0.data[pi+1]},${img0.data[pi+2]})`);
+        }
+        console.log('[StarScout] crop mid-row samples (order 0):', samples.join(' '));
+        diagFail(
+          `No dialog found in bottom third of RS window (${rsW}×${cropH}px).\n\n` +
+          `Color samples: ${samples.slice(0, 5).join(' ')}\n\n` +
+          `Make sure the telescope dialog is fully visible, then scan.\n` +
+          `Check Dev Console for [StarScout] logs to help diagnose.`
+        );
+        return;
+      }
 
-'Pixel data is all zeros — screen capture is not working.\n\n' +
+      scanText.textContent = `Dialog found at (${bounds.x},${bounds.y}) ${bounds.w}×${bounds.h} — hasNext:${bounds.hasNextButton}. Reading text…`;
+      doOCR(bounds);
 
-'In Alt1 Settings → Capture tab:\n' +
+    } catch(err) {
+      console.error('[StarScout] scanScreen error:', err);
+      diagFail(`Scan error: ${err.message || String(err)}`);
+    }
 
-'• Make sure OpenGL is selected\n' +
-
-'• Click the test button — it should say "successfully found home teleport"\n' +
-
-'• If it fails, try Desktop capture mode instead\n\n' +
-
-'Then reload this app and scan again.'
-
-);
-
-return;
-
-}
-
-scanText.textContent = `Step 2: ${nonZero} non-zero pixels found. Detecting byte order…`;
-
-// Try all 4 byte orderings; use the first one that finds the dialog
-
-let bounds    = null;
-
-let winOrder  = -1;
-
-for (let order = 0; order < 4; order++) {
-
-const img = bufToImgData(buf, sw, sh, order);
-
-// Log center pixel for diagnostics
-
-const ci = (Math.floor(sh/2) * sw + Math.floor(sw/2)) * 4;
-
-console.log(`[StarScout] order=${order} center=(${img.data[ci]},${img.data[ci+1]},${img.data[ci+2]})`);
-
-const b = findDialogBounds(img);
-
-if (b) { bounds = b; winOrder = order; break; }
-
-}
-
-console.log(`[StarScout] winOrder:${winOrder} bounds:${JSON.stringify(bounds)}`);
-
-if (!bounds) {
-
-// Dump a colour grid so we can tune if needed
-
-const cx = Math.floor(sw/2), cy = Math.floor(sh/2);
-
-const img0 = bufToImgData(buf, sw, sh, 0);
-
-const colorSamples = [];
-
-for (let dy = -2; dy <= 2; dy++) {
-
-for (let dx = -2; dx <= 2; dx++) {
-
-const pi = ((cy + dy*20) * sw + (cx + dx*20)) * 4;
-
-const d  = img0.data;
-
-colorSamples.push(`(${d[pi]},${d[pi+1]},${d[pi+2]})`);
-
-}
-
-}
-
-console.log('[StarScout] color grid (order 0):', colorSamples.join(' '));
-
-diagFail(
-
-`Step 2: No dialog found in ${nonZero} non-zero pixels.\n\n` +
-
-`Center color samples (order 0): ${colorSamples.slice(0,6).join(' ')}\n\n` +
-
-`Make sure the telescope dialog is open and fully visible on screen, then scan.\n` +
-
-`Share the Dev Console output so we can tune the color values.`
-
-);
-
-return;
+  }, 50);
 
 }
-
-scanText.textContent = `Step 3: Dialog found (order ${winOrder}) at (${bounds.x},${bounds.y}) ${bounds.w}×${bounds.h} — hasNext:${bounds.hasNextButton}. Reading text…`;
-
-doOCR(bounds);
-
-} catch(err) {
-
-console.error('[StarScout] scanScreen error:', err);
-
-diagFail(`Scan error: ${err.message || String(err)}`);
-
-}
-
-}, 50);
-
-}
-
 // ── OCR the located dialog region ──
 
 function doOCR(bounds) {
