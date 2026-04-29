@@ -1665,14 +1665,20 @@ function scanCanvasForDialog(ctx, w, h) {
     return hits >= 3;
   }
 
+  // Gap tolerance of 60px — text characters inside the dialog create columns
+  // that fail isDialogColumn, so we need to skip past them without stopping.
+  // We track the last confirmed parchment column and stop only when we go
+  // 60px past it with no new hits.
   let leftX = parchX, rightX = parchX;
+  let lastHitL = parchX;
   for (let x = parchX; x >= 0; x--) {
-    if (isDialogColumn(x, midY)) leftX = x;
-    else if (parchX - x > 8) break;
+    if (isDialogColumn(x, midY)) { leftX = x; lastHitL = x; }
+    else if (lastHitL - x > 60) break;
   }
+  let lastHitR = parchX;
   for (let x = parchX; x < w; x++) {
-    if (isDialogColumn(x, midY)) rightX = x;
-    else if (x - parchX > 8) break;
+    if (isDialogColumn(x, midY)) { rightX = x; lastHitR = x; }
+    else if (x - lastHitR > 60) break;
   }
 
   const dialogW = rightX - leftX;
