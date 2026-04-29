@@ -1391,16 +1391,14 @@ function scanScreen() {
   if (typeof alt1 === 'undefined') { simulateScan(); return; }
 
   scanArea.className = 'scan-area scanning';
-  scanText.textContent = 'Step 1: Locating RS window…';
-  setStatus('Capturing…');
+  scanText.textContent = 'Step 1: Locating RS window\u2026';
+  setStatus('Capturing\u2026');
   scanBtn.disabled = true;
 
   setTimeout(() => {
     try {
 
-      // ── Step 1: Locate the RS window via Alt1 ──
-      // alt1.rsX/rsY is the top-left screen position of the RS client.
-      // alt1.rsWidth/rsHeight is its size. Returns -1 if RS not detected.
+      // ── Step 1: Locate the RS window ──
 
       const rsX = alt1.rsX;
       const rsY = alt1.rsY;
@@ -1418,83 +1416,75 @@ function scanScreen() {
         return;
       }
 
-      // ── Step 2: Capture only the bottom ~45% of the RS client ──
-      // The telescope dialog always appears in the lower portion of the screen.
-      // Capturing just this region is faster and avoids false positives from
-      // warm-colored UI elements elsewhere (inventory, chat, skill guide, etc).
+      // ── Step 2: Read text from the bottom half of the RS window directly ──
+      //
+      // Rather than hunting for the dialog box by pixel color, we use Alt1's
+      // bindReadString to read ALL RS-rendered text from the bottom half of
+      // the client. bindReadString only picks up actual game-rendered text,
+      // so it naturally ignores non-text pixels. If the dialog is open, the
+      // phrase "You see a shooting star!" will be in the result.
+      //
+      // We read the bottom half because the dialog always appears there, and
+      // using a smaller region is faster and produces cleaner text output.
 
       const cropY = Math.floor(rsH * 0.5);
       const cropH = rsH - cropY;
       const absX  = rsX;
       const absY  = rsY + cropY;
 
-      console.log(`[StarScout] Crop region: absX=${absX} absY=${absY} w=${rsW} h=${cropH}`);
+      console.log(`[StarScout] Reading text from: absX=${absX} absY=${absY} w=${rsW} h=${cropH}`);
 
-      scanText.textContent = `Step 2: RS window ${rsW}×${rsH}. Capturing bottom half…`;
+      scanText.textContent = `Step 2: RS window found (${rsW}\u00d7${rsH}). Reading dialog text\u2026`;
 
-      const buf = alt1.getRegion(absX, absY, rsW, cropH);
-
-      if (!buf || buf.length === 0) {
-        diagFail('"View screen" permission not active — right-click the app spanner icon and enable it.');
-        return;
+      // Try bindReadString first — reads plain RS text from a screen region
+      let text = '';
+      try {
+        text = alt1.bindReadString(absX, absY, rsW, cropH) || '';
+        console.log('[StarScout] bindReadString result:', JSON.stringify(text));
+      } catch(e) {
+        console.warn('[StarScout] bindReadString failed:', e);
       }
 
-      let nonZero = 0;
-      for (let i = 0; i < Math.min(buf.length, 5000); i++) {
-        if (buf[i] !== 0) nonZero++;
-      }
-      console.log(`[StarScout] buf.length:${buf.length} nonZero(5k):${nonZero}`);
-
-      if (nonZero === 0) {
-        diagFail(
-          'Pixel data is all zeros — screen capture not working.\n\n' +
-          'In Alt1 Settings → Capture tab:\n' +
-          '• Make sure OpenGL capture is selected\n' +
-          '• Click the test button — should say "successfully found home teleport"\n' +
-          '• If it fails, try Desktop capture mode\n\n' +
-          'Then reload and scan again.'
-        );
-        return;
-      }
-
-      // ── Step 3: Try all 4 byte orderings, search cropped region for dialog ──
-
-      scanText.textContent = `Step 3: ${nonZero} non-zero pixels. Scanning for dialog…`;
-
-      let bounds   = null;
-      let winOrder = -1;
-
-      for (let order = 0; order < 4; order++) {
-        const img = bufToImgData(buf, rsW, cropH, order);
-        const ci  = (Math.floor(cropH / 2) * rsW + Math.floor(rsW / 2)) * 4;
-        console.log(`[StarScout] order=${order} cropCenter=(${img.data[ci]},${img.data[ci+1]},${img.data[ci+2]})`);
-        const b = findDialogBounds(img, absX, absY);
-        if (b) { bounds = b; winOrder = order; break; }
-      }
-
-      console.log(`[StarScout] winOrder:${winOrder} bounds:${JSON.stringify(bounds)}`);
-
-      if (!bounds) {
-        const img0    = bufToImgData(buf, rsW, cropH, 0);
-        const midY    = Math.floor(cropH / 2);
-        const samples = [];
-        for (let dx = -4; dx <= 4; dx++) {
-          const px = Math.floor(rsW / 2) + dx * 30;
-          const pi = (midY * rsW + px) * 4;
-          samples.push(`(${img0.data[pi]},${img0.data[pi+1]},${img0.data[pi+2]})`);
+      // Fallback: bindReadColorString strips color codes, good for dialogue text
+      if (!text || text.trim().length < 5) {
+        try {
+          const colored = alt1.bindReadColorString(absX, absY, rsW, cropH) || '';
+          text = colored.replace(/<[^>]+>/g, '').replace(/\|[0-9a-f]{6}/gi, '').trim();
+          console.log('[StarScout] bindReadColorString (stripped):', JSON.stringify(text));
+        } catch(e) {
+          console.warn('[StarScout] bindReadColorString failed:', e);
         }
-        console.log('[StarScout] crop mid-row samples (order 0):', samples.join(' '));
+      }
+
+      // ── Step 3: Check if it looks like the shooting star dialog ──
+
+      if (!text || text.trim().length < 5) {
+        // Text APIs returned nothing — fall back to pixel scanning
+        console.log('[StarScout] Text APIs returned empty, falling back to pixel scan');
+        scanText.textContent = 'Step 3: Text read empty, trying pixel scan\u2026';
+        pixelFallbackScan(rsX, rsY, rsW, rsH, absX, absY, cropH);
+        return;
+      }
+
+      const lowerText = text.toLowerCase();
+      const isStarDialog = lowerText.includes('shooting star')
+                        || lowerText.includes('size')
+                        || lowerText.includes('land in')
+                        || lowerText.includes('minutes');
+
+      console.log(`[StarScout] isStarDialog:${isStarDialog} text length:${text.length}`);
+
+      if (!isStarDialog) {
         diagFail(
-          `No dialog found in bottom half of RS window (${rsW}×${cropH}px).\n\n` +
-          `Color samples: ${samples.slice(0, 5).join(' ')}\n\n` +
-          `Make sure the telescope dialog is fully visible, then scan.\n` +
-          `Check Dev Console for [StarScout] logs to help diagnose.`
+          `Text found but doesn't look like the star dialog.\n\n` +
+          `Read: "${text.substring(0, 150).replace(/\s+/g,' ')}"\n\n` +
+          `Make sure the telescope dialog is open and visible, then scan.`
         );
         return;
       }
 
-      scanText.textContent = `Dialog found at (${bounds.x},${bounds.y}) ${bounds.w}×${bounds.h} — hasNext:${bounds.hasNextButton}. Reading text…`;
-      doOCR(bounds);
+      // We have the dialog text — parse it directly, no bounds needed
+      attemptParse(text.trim(), null);
 
     } catch(err) {
       console.error('[StarScout] scanScreen error:', err);
@@ -1502,6 +1492,80 @@ function scanScreen() {
     }
 
   }, 50);
+
+}
+
+// ── Pixel fallback: used only if text APIs return nothing ──
+// Captures the bottom half, tries all byte orderings, scans for the dialog
+// structure (dark top-band → parchment body), then OCRs the found region.
+
+function pixelFallbackScan(rsX, rsY, rsW, rsH, absX, absY, cropH) {
+
+  try {
+    const buf = alt1.getRegion(absX, absY, rsW, cropH);
+
+    if (!buf || buf.length === 0) {
+      diagFail('"View screen" permission not active — right-click the app spanner icon and enable it.');
+      return;
+    }
+
+    let nonZero = 0;
+    for (let i = 0; i < Math.min(buf.length, 5000); i++) {
+      if (buf[i] !== 0) nonZero++;
+    }
+    console.log(`[StarScout] pixel fallback: buf.length:${buf.length} nonZero(5k):${nonZero}`);
+
+    if (nonZero === 0) {
+      diagFail(
+        'Pixel data is all zeros — screen capture not working.\n\n' +
+        'In Alt1 Settings \u2192 Capture tab:\n' +
+        '\u2022 Make sure OpenGL capture is selected\n' +
+        '\u2022 Click the test button — should say "successfully found home teleport"\n' +
+        '\u2022 If it fails, try Desktop capture mode\n\n' +
+        'Then reload and scan again.'
+      );
+      return;
+    }
+
+    let bounds   = null;
+    let winOrder = -1;
+
+    for (let order = 0; order < 4; order++) {
+      const img = bufToImgData(buf, rsW, cropH, order);
+      const ci  = (Math.floor(cropH / 2) * rsW + Math.floor(rsW / 2)) * 4;
+      console.log(`[StarScout] order=${order} cropCenter=(${img.data[ci]},${img.data[ci+1]},${img.data[ci+2]})`);
+      const b = findDialogBounds(img, absX, absY);
+      if (b) { bounds = b; winOrder = order; break; }
+    }
+
+    console.log(`[StarScout] pixel fallback winOrder:${winOrder} bounds:${JSON.stringify(bounds)}`);
+
+    if (!bounds) {
+      const img0    = bufToImgData(buf, rsW, cropH, 0);
+      const midY    = Math.floor(cropH / 2);
+      const samples = [];
+      for (let dx = -4; dx <= 4; dx++) {
+        const px = Math.floor(rsW / 2) + dx * 30;
+        const pi = (midY * rsW + px) * 4;
+        samples.push(`(${img0.data[pi]},${img0.data[pi+1]},${img0.data[pi+2]})`);
+      }
+      console.log('[StarScout] pixel fallback color samples:', samples.join(' '));
+      diagFail(
+        `No dialog found in bottom half of RS window (${rsW}\u00d7${cropH}px).\n\n` +
+        `Color samples: ${samples.slice(0, 5).join(' ')}\n\n` +
+        `Make sure the telescope dialog is fully visible, then scan.\n` +
+        `Check Dev Console for [StarScout] logs to help diagnose.`
+      );
+      return;
+    }
+
+    scanText.textContent = `Dialog found at (${bounds.x},${bounds.y}) ${bounds.w}\u00d7${bounds.h}. Reading text\u2026`;
+    doOCR(bounds);
+
+  } catch(err) {
+    console.error('[StarScout] pixelFallbackScan error:', err);
+    diagFail(`Pixel scan error: ${err.message || String(err)}`);
+  }
 
 }
 // ── OCR the located dialog region ──
