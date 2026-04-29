@@ -1182,40 +1182,57 @@ setStatus('World not detected — enter manually', 'err');
 
 }
 
-// ── Exact RS HSL-derived color anchors ──
+// ── Dialog pixel color detection ──
 //
-// These come directly from in-game color values converted via the Jagex
-// RS HSL system (H: 0-63, S: 0-7, L: 0-127):
+// Pixel-sampled directly from in-game screenshots. The RS shooting stars
+// dialog has three visually distinct zones used for detection:
 //
-//   RS HSL (6, 2, 92)  → RGB(205, 187, 165) — dialogue border / parchment tan
-//   RS HSL (7, 1, 19)  → RGB( 44,  40,  33) — dark frame shadow / outer edge
-//   RS HSL (7, 3, 121) → RGB(248, 245, 238) — "Next" button near-white highlight
+//  1. PARCHMENT BODY — the warm tan/beige dialog background.
+//     Not a single color but a gradient range:
+//       R: 155-225, G: 135-205, B: 100-175, and (R - B) > 25
+//     The warm-tone test (R-B > 25) excludes grey UI elements.
 //
-// Tolerance of ±10 to account for minor gamma/rendering variation between
-// machines while still being tight enough to avoid false positives.
+//  2. DARK BAND — the near-black strip framing the top of the dialog.
+//     Sampled as RGB ~(25-60, 20-55, 15-50). Most reliable anchor
+//     for locating the dialog top edge — solid and consistent.
+//
+//  3. GOLDEN BUTTON — the amber "Click here to continue" button.
+//     The RS HSL 7,3,121 value was wrong for this element.
+//     Actual sampled: R:180-255, G:130-235, B:60-195, (R-B) > 70.
+//     Top highlight ~RGB(245,225,183), mid ~RGB(236,195,133).
 
-const COLOR_BORDER = [205, 187, 165];
-const COLOR_SHADOW = [ 44,  40,  33];
-const COLOR_NEXT   = [248, 245, 238];
-const TOLERANCE    = 10;
-
-function colorClose(r, g, b, target) {
-
-return Math.abs(r - target[0]) <= TOLERANCE
-
-    && Math.abs(g - target[1]) <= TOLERANCE
-
-    && Math.abs(b - target[2]) <= TOLERANCE;
-
+function isParchment(r, g, b) {
+  return r >= 155 && r <= 225
+      && g >= 135 && g <= 205
+      && b >= 100 && b <= 175
+      && (r - b) > 25;
 }
 
-// Matches either the border tan OR the dark shadow edge
+function isDarkBand(r, g, b) {
+  return r >= 25 && r <= 60
+      && g >= 20 && g <= 55
+      && b >= 15 && b <= 50
+      && Math.abs(r - g) < 20
+      && Math.abs(g - b) < 20;
+}
+
+function isGoldenButton(r, g, b) {
+  return r >= 180 && r <= 255
+      && g >= 130 && g <= 235
+      && b >=  60 && b <= 195
+      && (r - b) > 70;
+}
+
+// Combined: parchment body OR dark frame band counts as a dialog pixel
 function isDialogPixel(r, g, b) {
+  return isParchment(r, g, b) || isDarkBand(r, g, b);
+}
 
-return colorClose(r, g, b, COLOR_BORDER)
-
-    || colorClose(r, g, b, COLOR_SHADOW);
-
+// Generic close-color helper (kept for any point comparisons)
+function colorClose(r, g, b, target, tol) {
+  return Math.abs(r - target[0]) <= tol
+      && Math.abs(g - target[1]) <= tol
+      && Math.abs(b - target[2]) <= tol;
 }
 
 // ── Byte-order normalisation ──
@@ -1290,28 +1307,26 @@ const h = maxY - minY;
 
 console.log(`[StarScout] dialog pixel hits:${hits} w:${w} h:${h}`);
 
-// Raised thresholds now that colors are exact — fewer but more reliable hits
-if (hits < 80 || w < 150 || h < 40) return null;
+// Wide parchment range produces many hits — require meaningful coverage
+if (hits < 200 || w < 150 || h < 40) return null;
 
-// ── Next button detection ──
-// Scan the lower-right quadrant of the found dialog for the near-white
-// button highlight (RS HSL 7,3,121 → RGB 248,245,238)
+// ── Golden button detection ──
+// Scan the lower half of the found dialog for the amber/gold button.
+// Searches center-wide (not just right half) since button is centered.
 
 let hasNextButton = false;
 
-const btnCheckX     = Math.floor((minX + maxX) / 2);
-
-const btnCheckYStart = minY + Math.floor(h * 0.6);
+const btnCheckYStart = minY + Math.floor(h * 0.55);
 
 outer:
 
 for (let y = btnCheckYStart; y <= maxY; y += 2) {
 
-for (let x = btnCheckX; x <= maxX; x += 2) {
+for (let x = minX; x <= maxX; x += 2) {
 
 const i = (y * width + x) * 4;
 
-if (colorClose(data[i], data[i+1], data[i+2], COLOR_NEXT)) {
+if (isGoldenButton(data[i], data[i+1], data[i+2])) {
 
 hasNextButton = true;
 
