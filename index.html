@@ -1459,19 +1459,18 @@ function scanScreen() {
       const canvas = document.createElement('canvas');
       canvas.width  = rsW;
       canvas.height = cropH;
-      const ctx     = canvas.getContext('2d');
+      // willReadFrequently=true avoids repeated readback warnings
+      const ctx     = canvas.getContext('2d', { willReadFrequently: true });
       const imgData = ctx.createImageData(rsW, cropH);
       const dst     = imgData.data;
 
-      // ARGB → RGBA
+      // getRegion returns BGRA bytes (Windows DIB format, little-endian).
+      // byte0=B, byte1=G, byte2=R, byte3=A
+      // Canvas ImageData wants RGBA, so we reorder:
       for (let i = 0; i < pixels; i++) {
-        const a = raw.charCodeAt(i * 4 + 0);
-        const r = raw.charCodeAt(i * 4 + 1);
-        const g = raw.charCodeAt(i * 4 + 2);
-        const b = raw.charCodeAt(i * 4 + 3);
-        dst[i * 4 + 0] = r;
-        dst[i * 4 + 1] = g;
-        dst[i * 4 + 2] = b;
+        dst[i * 4 + 0] = raw.charCodeAt(i * 4 + 2); // R
+        dst[i * 4 + 1] = raw.charCodeAt(i * 4 + 1); // G
+        dst[i * 4 + 2] = raw.charCodeAt(i * 4 + 0); // B
         dst[i * 4 + 3] = 255;
       }
 
