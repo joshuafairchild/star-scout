@@ -1399,14 +1399,16 @@ function scanScreen() {
     try {
 
       // ── Step 1: Locate the RS window ──
-      const rsX = alt1.rsX;
-      const rsY = alt1.rsY;
-      const rsW = alt1.rsWidth;
-      const rsH = alt1.rsHeight;
+      const rsX      = alt1.rsX;
+      const rsY      = alt1.rsY;
+      const rsW      = alt1.rsWidth;
+      const rsH      = alt1.rsHeight;
+      const rsLinked = alt1.rsLinked;
 
-      console.log(`[StarScout] RS window: x=${rsX} y=${rsY} w=${rsW} h=${rsH}`);
+      console.log(`[StarScout] rsLinked=${rsLinked} x=${rsX} y=${rsY} w=${rsW} h=${rsH}`);
+      console.log(`[StarScout] alt1 version=${alt1.version} permissionPixels=${alt1.permissionPixels}`);
 
-      if (rsW <= 0 || rsH <= 0) {
+      if (!rsLinked || rsW <= 0 || rsH <= 0) {
         diagFail(
           'RuneScape window not detected by Alt1.\n\n' +
           'Make sure RuneScape is open and Alt1 has found it.'
@@ -1416,81 +1418,127 @@ function scanScreen() {
 
       // ── Step 2: Bind the bottom half of the RS client ──
       //
-      // The correct Alt1 API flow is:
-      //   id = alt1.bindRegion(x, y, w, h)  — captures a screen region, returns an id
-      //   alt1.bindReadString(id, font, x, y) — reads text at (x,y) within that capture
+      // Correct Alt1 API flow:
+      //   id = alt1.bindRegion(x, y, w, h)   — captures region, returns id
+      //   alt1.bindReadString(id, font, x, y) — reads one text line at (x,y)
+      //                                         within the bound image
       //
-      // bindRegion uses SCREEN coordinates (rsX + offset).
-      // bindReadString x/y are LOCAL to the captured region, so start at 0,0.
-      //
-      // Valid fonts: 'chat', 'chatmono', 'xpcounter'
-      // The telescope dialog uses the standard RS 'chat' font.
-      //
-      // We bind the entire bottom half, then scan every ~14px row (line height)
-      // looking for text. When we find a line containing star dialog keywords
-      // we collect it and its neighbours to build the full dialog text.
+      // Font must be one of: 'chat', 'chatmono', 'xpcounter'
+      // The telescope dialog uses 'chat'.
 
       const cropY = Math.floor(rsH * 0.5);
       const cropH = rsH - cropY;
       const absX  = rsX;
       const absY  = rsY + cropY;
 
-      console.log(`[StarScout] Binding region: absX=${absX} absY=${absY} w=${rsW} h=${cropH}`);
-      scanText.textContent = `Step 2: RS window found (${rsW}\u00d7${rsH}). Binding region\u2026`;
+      console.log(`[StarScout] bindRegion(${absX}, ${absY}, ${rsW}, ${cropH})`);
+      scanText.textContent = `Step 2: Binding region (${rsW}×${cropH})…`;
 
       const imgId = alt1.bindRegion(absX, absY, rsW, cropH);
-      if (!imgId && imgId !== 0) {
-        diagFail('"View screen" permission not active \u2014 right-click the app spanner icon and enable it.');
+      console.log(`[StarScout] bindRegion id=${imgId} type=${typeof imgId}`);
+
+      if (imgId === null || imgId === undefined || imgId === -1) {
+        diagFail('"View screen" permission not active — right-click the app spanner icon and enable it.');
         return;
       }
 
-      console.log(`[StarScout] bindRegion id=${imgId}`);
-      scanText.textContent = `Step 3: Region bound (id=${imgId}). Scanning for dialog text\u2026`;
+      // ── Step 3: Diagnostic pixel check ──
+      // Before trying to read text, verify we're getting real pixel data
+      // by sampling a pixel near the center of the bound region.
+      // If it returns 0 the capture is broken; if it returns a real color
+      // we know the bind worked and we can proceed to text reading.
 
-      // ── Step 3: Scan rows for dialog text ──
-      // Walk down the captured region in ~13px steps (RS chat line height).
-      // At each row try to read a string with the 'chat' font.
-      // Collect all non-empty lines, then parse the full text.
-
-      const LINE_HEIGHT = 13;
-      const lines = [];
-
-      for (let y = 0; y < cropH - LINE_HEIGHT; y += LINE_HEIGHT) {
-        let line = '';
-        try {
-          line = alt1.bindReadString(imgId, 'chat', 0, y) || '';
-        } catch(e) { /* skip failed reads */ }
-
-        if (line && line.trim().length > 1) {
-          console.log(`[StarScout] y=${y} line: ${JSON.stringify(line)}`);
-          lines.push(line.trim());
-        }
+      let centerPixel = -1;
+      try {
+        centerPixel = alt1.bindGetPixel(imgId, Math.floor(rsW / 2), Math.floor(cropH / 2));
+      } catch(e) {
+        console.warn('[StarScout] bindGetPixel failed:', e);
       }
 
-      console.log(`[StarScout] Total lines found: ${lines.length}`);
-      console.log(`[StarScout] All lines:`, lines);
+      const pr = (centerPixel >> 16) & 0xff;
+      const pg = (centerPixel >>  8) & 0xff;
+      const pb =  centerPixel        & 0xff;
+      console.log(`[StarScout] center pixel raw=${centerPixel} RGB=(${pr},${pg},${pb})`);
 
-      if (lines.length === 0) {
+      if (centerPixel === 0 || centerPixel === -1) {
         diagFail(
-          'No text found in the bottom half of the RS window.\n\n' +
-          'Make sure:\n' +
-          '\u2022 The telescope dialog is open and fully visible\n' +
-          '\u2022 "View screen" permission is enabled (app spanner)\n' +
-          '\u2022 RS is not minimised\n\n' +
-          'Check Dev Console for [StarScout] logs.'
+          'Pixel data is empty — screen capture not working.\n\n' +
+          'In Alt1 Settings → Capture tab:\n' +
+          '• Make sure OpenGL capture is selected\n' +
+          '• Click the test button\n' +
+          '• Try Desktop capture mode if OpenGL fails\n\n' +
+          'Then reload and try again.'
         );
         return;
       }
 
-      const fullText = lines.join(' ');
-      const lowerText = fullText.toLowerCase();
-      const isStarDialog = lowerText.includes('shooting star')
-                        || lowerText.includes('size')
-                        || lowerText.includes('land in')
-                        || lowerText.includes('minutes');
+      // ── Step 4: Scan every row for text ──
+      // Walk in LINE_HEIGHT steps. Try both 'chat' and 'chatmono' fonts
+      // since we're not 100% sure which the dialog uses.
 
-      console.log(`[StarScout] fullText: ${JSON.stringify(fullText)}`);
-      console.log(`[StarScout] isStarDialog: ${isStarDialog}`);
+      scanText.textContent = `Step 3: Pixel OK (${pr},${pg},${pb}). Reading text rows…`;
+
+      const LINE_HEIGHT = 13;
+      const allLines = [];
+      let totalAttempts = 0;
+
+      for (let y = 0; y < cropH - LINE_HEIGHT; y += LINE_HEIGHT) {
+        for (const font of ['chat', 'chatmono']) {
+          let line = '';
+          try {
+            line = alt1.bindReadString(imgId, font, 0, y) || '';
+          } catch(e) {
+            console.warn(`[StarScout] bindReadString y=${y} font=${font} err:`, e.message);
+            break; // if one font errors, skip to next y
+          }
+          totalAttempts++;
+          if (line && line.trim().length > 1) {
+            console.log(`[StarScout] FOUND y=${y} font=${font}: ${JSON.stringify(line)}`);
+            allLines.push(line.trim());
+            break; // found text on this row, don't try other font
+          }
+        }
+      }
+
+      console.log(`[StarScout] attempts=${totalAttempts} linesFound=${allLines.length}`);
+      console.log(`[StarScout] all lines:`, JSON.stringify(allLines));
+
+      if (allLines.length === 0) {
+        // No text at all — add extra diagnostics
+        // Try reading from y=0 with a fixed x offset in case dialog isn't at x=0
+        console.log('[StarScout] Trying offset x positions...');
+        const diagResults = [];
+        for (const xOff of [0, 50, 100, 150, 200, Math.floor(rsW/4), Math.floor(rsW/2)]) {
+          for (const yOff of [0, 13, 26, 39, 52, 65, 78, 91, 104]) {
+            let t = '';
+            try { t = alt1.bindReadString(imgId, 'chat', xOff, yOff) || ''; } catch(e) {}
+            if (t && t.trim().length > 1) {
+              diagResults.push(`x=${xOff} y=${yOff}: "${t.trim()}"`);
+            }
+          }
+        }
+        console.log('[StarScout] offset scan results:', diagResults);
+
+        diagFail(
+          `No text found in ${totalAttempts} read attempts.\n\n` +
+          (diagResults.length > 0
+            ? `Offset scan found: ${diagResults.slice(0,3).join(', ')}`
+            : `Center pixel was RGB(${pr},${pg},${pb}) so capture works.\n\n` +
+              `The dialog font may not be 'chat' or 'chatmono'.\n` +
+              `Make sure the telescope dialog is fully visible and try again.\n\n` +
+              `Check Dev Console for full [StarScout] logs.`)
+        );
+        return;
+      }
+
+      const fullText = allLines.join(' ');
+      const lower = fullText.toLowerCase();
+      const isStarDialog = lower.includes('shooting star')
+                        || lower.includes('size')
+                        || lower.includes('land in')
+                        || lower.includes('minutes');
+
+      console.log(`[StarScout] fullText=${JSON.stringify(fullText)} isStarDialog=${isStarDialog}`);
 
       if (!isStarDialog) {
         diagFail(
