@@ -1406,96 +1406,76 @@ function scanScreen() {
       const rsLinked = alt1.rsLinked;
 
       console.log('[StarScout] rsLinked=' + rsLinked + ' w=' + rsW + ' h=' + rsH);
-      console.log('[StarScout] permissionPixels=' + alt1.permissionPixels + ' version=' + alt1.version);
 
       if (!rsLinked || rsW <= 0 || rsH <= 0) {
         diagFail('RuneScape window not detected by Alt1.\nMake sure RuneScape is open and Alt1 has found it.');
         return;
       }
 
-      // Step 2: bind the bottom half using bindRegion.
-      //
-      // bindScreenRegion has been removed from Alt1 — only bindRegion exists.
-      // bindRegion(x, y, w, h) uses coordinates RELATIVE to the RS window top-left.
-      // So to capture the bottom half: x=0, y=cropY, w=rsW, h=cropH.
+      // Step 2: bind the bottom half.
+      // bindRegion(x, y, w, h) uses RS-window-relative coords.
+      // Bottom half = y starts at 50% of rsH.
 
       const cropY = Math.floor(rsH * 0.5);
       const cropH = rsH - cropY;
 
       console.log('[StarScout] bindRegion(0, ' + cropY + ', ' + rsW + ', ' + cropH + ')');
-      scanText.textContent = 'Step 2: Binding bottom half…';
 
       let imgId = -1;
       try {
         imgId = alt1.bindRegion(0, cropY, rsW, cropH);
-        console.log('[StarScout] bindRegion id=' + imgId);
       } catch(e) {
-        console.error('[StarScout] bindRegion failed:', e.message);
-        diagFail('"View screen" permission not active.\nRight-click the app spanner and enable "Screen pixels", then reload.');
+        diagFail('bindRegion failed: ' + e.message + '\nEnable "View screen" permission (app spanner).');
         return;
       }
+
+      console.log('[StarScout] bindRegion id=' + imgId);
 
       if (imgId === null || imgId === undefined || imgId < 0) {
-        diagFail('"View screen" permission not active.\nRight-click the app spanner and enable "Screen pixels", then reload.');
+        diagFail('bindRegion returned invalid id.\nEnable "View screen" permission (app spanner).');
         return;
       }
 
-      // Step 3: scan for text.
+      // Step 3: scan every single pixel row.
       //
-      // bindReadString(id, fontname, x, y):
-      //   - x, y are LOCAL to the bound region (0,0 = top-left of our crop)
-      //   - fontname: 'chat' is the RS dialogue font
-      //   - 'chatmono' is for monospace chat text
-      //   - 'xpcounter' is for XP overlay numbers — NOT for dialog text
-      //
-      // The dialog text is centered, so we scan x=0 across the full width.
-      // bindReadString reads an entire line starting at (x,y), scanning rightward.
-      // Passing x=0 should catch left-aligned or centered text.
-      //
-      // Line height in RS dialogue is ~13px.
+      // bindReadString reads a text line whose BASELINE is at y.
+      // With 13px steps we almost certainly miss every baseline.
+      // Scan y=0..cropH one pixel at a time — only takes ~1ms per call
+      // since Alt1 returns empty instantly when no text is found.
+      // Stop as soon as we have enough lines to parse.
 
-      scanText.textContent = 'Step 3: Reading text rows…';
+      scanText.textContent = 'Step 3: Scanning rows (1px step)…';
 
-      const LINE_HEIGHT = 13;
-      const allLines    = [];
+      const allLines = [];
+      const seenText = new Set();
 
-      for (let y = 0; y < cropH - LINE_HEIGHT; y += LINE_HEIGHT) {
-        // Only try 'chat' — 'xpcounter' produces garbage on dialog backgrounds
-        // and 'chatmono' is a fallback only if 'chat' finds nothing at all
-        let line = '';
-        try {
-          line = alt1.bindReadString(imgId, 'chat', 0, y) || '';
-        } catch(e) {
-          console.warn('[StarScout] bindReadString y=' + y + ' err: ' + e.message);
-          continue;
+      for (let y = 0; y < cropH; y++) {
+        for (const font of ['chat', 'chatmono']) {
+          let line = '';
+          try {
+            line = alt1.bindReadString(imgId, font, 0, y) || '';
+          } catch(e) { continue; }
+
+          const trimmed = line.trim();
+          // Skip empty, single chars, and duplicates (same text found at adjacent y values)
+          if (trimmed.length < 3) continue;
+          if (seenText.has(trimmed)) continue;
+
+          console.log('[StarScout] y=' + y + ' font=' + font + ': ' + JSON.stringify(trimmed));
+          seenText.add(trimmed);
+          allLines.push(trimmed);
+
+          // Once we have enough text to parse, stop scanning
+          if (allLines.length >= 8) break;
         }
-        if (line && line.trim().length > 1) {
-          console.log('[StarScout] y=' + y + ' chat: ' + JSON.stringify(line));
-          allLines.push(line.trim());
-        }
+        if (allLines.length >= 8) break;
       }
 
       console.log('[StarScout] linesFound=' + allLines.length + ' lines=' + JSON.stringify(allLines));
 
-      // If chat font found nothing, try chatmono as a last resort
-      if (allLines.length === 0) {
-        console.log('[StarScout] chat found nothing, trying chatmono…');
-        for (let y = 0; y < cropH - LINE_HEIGHT; y += LINE_HEIGHT) {
-          let line = '';
-          try {
-            line = alt1.bindReadString(imgId, 'chatmono', 0, y) || '';
-          } catch(e) { continue; }
-          if (line && line.trim().length > 1) {
-            console.log('[StarScout] y=' + y + ' chatmono: ' + JSON.stringify(line));
-            allLines.push(line.trim());
-          }
-        }
-        console.log('[StarScout] chatmono linesFound=' + allLines.length);
-      }
-
       if (allLines.length === 0) {
         diagFail(
-          'No text found in the bottom half of the RS window.\n\n' +
+          'No text found scanning all ' + cropH + ' rows of the bottom half.\n\n' +
           'Make sure:\n' +
           '\u2022 The telescope dialog is fully visible on screen\n' +
           '\u2022 "View screen" permission is enabled (app spanner)\n' +
@@ -1516,9 +1496,10 @@ function scanScreen() {
       console.log('[StarScout] isStarDlg=' + isStarDlg);
 
       if (!isStarDlg) {
+        // Show what we found — helps diagnose wrong font / wrong region
         diagFail(
           'Text found but not the star dialog.\n\n' +
-          'Read: "' + fullText.substring(0, 150) + '"\n\n' +
+          'Read: "' + fullText.substring(0, 200) + '"\n\n' +
           'Make sure the telescope dialog is open, then scan.'
         );
         return;
