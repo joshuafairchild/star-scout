@@ -163,8 +163,8 @@ select option { background: #1a1409; color: var(--text); }
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════
-//  EMBEDDED ASSETS  (corner images as BGRA b64 for bindFindSubImg,
-//  and OCR font data from @alt1/ocr npm package)
+//  EMBEDDED ASSETS  (dialog corner images and OCR font data
+//  from @alt1/dialog and @alt1/ocr npm packages)
 // ═══════════════════════════════════════════════════════════════════════
 const DIALOG_BGRA = {
   boxtl: { w: 16, h: 16, bgra: 'Misa/zsyI/8yKxr/Misa/zsyI/87MiP/Misa/zw0Kv8yKxr/OzIj/zsyI/9COiv/Misa/0A3K/8yKxr/Misa/0I6K/8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP9JPy3/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/ST8t/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8ZDQL/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/0I6K/8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8KBQH/AQAA/wEAAP8BAAD/AQAA/wEAAP87MRz/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/Qjor/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/0I6K/8KBQH/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP9COiv/AQAA/wEAAP8BAAD/AQAA/xQNAv8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/OzEc/woFAf8BAAD/AQAA/wEAAP8UDQL/GhIF/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/zsyI/8KBQH/AQAA/wEAAP8BAAD/CgUB/yEaDf8hFQT/CgUB/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP9COiv/AQAA/wEAAP8BAAD/AQAA/xQNAv8UDQL/IRoN/ykdCv8rIxP/KR0K/yQZBf8aEgX/AQAA/w0JA/8BAAD/Qjor/wEAAP8BAAD/DQkD/w0JA/8KBQH/FA0C/woFAf8KBQH/CgUB/xEGAf8aEgX/DQkD/wEAAP8BAAD/CgUB/0I6K/8NCQP/AQAA/wEAAP8BAAD/AQAA/woFAf8aEgX/CgUB/woFAf8KBQH/CgUB/wEAAP8BAAD/AQAA/xoSBf9CNyX/FA0C/woFAf8KBQH/AQAA/woFAf8KBQH/CgUB/xQNAv8UDQL/CgUB/xoSBf8BAAD/AQAA/wEAAP8aEgX/OzIj/woFAf8BAAD/CgUB/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/woFAf8UDQL/CgUB/wEAAP8BAAD/IRUE/w==' },
@@ -344,16 +344,7 @@ function readDialogLines(buf) {
   return lines.length ? lines.join(' ') : null;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-//  DIALOG DETECTION  — two paths:
-//
-//  PRIMARY: alt1.bindRegion + alt1.bindFindSubImg  (native C++, fast)
-//    Captures only the bottom 25% of the RS window and runs the
-//    sub-image search natively. Returns match coords directly.
-//
-//  FALLBACK: pure-JS scan over the same bottom-crop region.
-//    Only used if bindFindSubImg is unavailable.
-// ═══════════════════════════════════════════════════════════════════════
+
 
 // Convert getRegion BGRA bytes → RGBA ImageData for our OCR engine.
 // alt1.getRegion is documented as "8bpp argb" but empirically the bytes
@@ -370,109 +361,18 @@ function bgraToRGBA(b64, w, h) {
   return { data: out, width: w, height: h };
 }
 
-// Parse bindFindSubImg result string: "x,y;x,y;..." → [{x,y},...]
-function parseSubImgResult(resultStr) {
-  if (!resultStr || resultStr.trim() === '') return [];
-  return resultStr.split(';').map(s => {
-    const [x, y] = s.split(',').map(Number);
-    return { x, y };
-  }).filter(p => !isNaN(p.x) && !isNaN(p.y));
-}
 
-// Main entry: find dialog box using Alt1 native API.
-// cropY, cropH: the region that was bound (so we can add offsets back).
-function findDialogNative(imgId, cropW, cropH, cropOffsetY) {
-  const DIALOG_W = 506;
-  const TL_SEARCH_W = cropW;
-  const TL_SEARCH_H = cropH;
-
-  for (const variant of ['', '_leg']) {
-    const tl = DIALOG_BGRA['boxtl' + variant];
-    const tr = DIALOG_BGRA['boxtr' + variant];
-
-    let tlResult;
-    try {
-      tlResult = alt1.bindFindSubImg(imgId, tl.bgra, tl.w, 0, 0, TL_SEARCH_W, TL_SEARCH_H);
-    } catch(e) {
-      console.warn('[StarScout] bindFindSubImg failed:', e);
-      return null; // signal to use fallback
-    }
-
-    const tlMatches = parseSubImgResult(tlResult);
-    console.log('[StarScout] boxtl' + variant + ' matches:', tlMatches.length, JSON.stringify(tlMatches.slice(0,5)));
-
-    for (const m of tlMatches) {
-      // Check for boxtr at exactly x+492 (±4px tolerance), same y (±3px)
-      const trResult = alt1.bindFindSubImg(imgId, tr.bgra, tr.w,
-        m.x + 488, Math.max(0, m.y - 3), 10, 10);
-      const trMatches = parseSubImgResult(trResult);
-      console.log('[StarScout] boxtr confirm at', m.x+492, m.y, '→', trMatches.length, 'matches');
-      if (trMatches.length > 0) {
-        return {
-          // +1 because Skillbert does box.x+1, box.y+1 to skip the border pixel
-          x: m.x + 1,
-          y: cropOffsetY + m.y + 1,
-          legacy: variant === '_leg'
-        };
-      }
-    }
-  }
-  return false; // not found
-}
-
-// Pure-JS fallback sub-image scan (only over bottom crop, step=2 for speed)
-function findDialogJS(b64crop, cropW, cropH, cropOffsetY) {
-  const img = bgraToRGBA(b64crop, cropW, cropH);
-  const buf = img.data;
-
-  function pixelMatch(bx, by, ref, tol) {
-    for (let ry = 0; ry < ref.h; ry += 2) { // step rows for speed
-      for (let rx = 0; rx < ref.w; rx += 2) {
-        const ri = (ry * ref.w + rx) * 4;
-        if (ref.px[ri+3] < 64) continue;
-        const bi = ((by+ry) * cropW + (bx+rx)) * 4;
-        if (Math.abs(buf[bi]   - ref.px[ri])   > tol ||
-            Math.abs(buf[bi+1] - ref.px[ri+1]) > tol ||
-            Math.abs(buf[bi+2] - ref.px[ri+2]) > tol) return false;
-      }
-    }
-    return true;
-  }
-
-  // Import RGBA reference images from DIALOG_IMGS if available, else decode BGRA
-  // We'll work from DIALOG_BGRA converting on the fly
-  function makeRGBARef(name) {
-    const src = DIALOG_BGRA[name];
-    const rawB64 = atob(src.bgra);
-    const px = new Array(src.w * src.h * 4);
-    for (let i = 0; i < src.w * src.h; i++) {
-      px[i*4  ] = rawB64.charCodeAt(i*4+2); // R
-      px[i*4+1] = rawB64.charCodeAt(i*4+1); // G
-      px[i*4+2] = rawB64.charCodeAt(i*4+0); // B
-      px[i*4+3] = rawB64.charCodeAt(i*4+3); // A (from our bgra encoding)
-    }
-    return { w: src.w, h: src.h, px };
-  }
-
-  for (const variant of ['', '_leg']) {
-    const tlRef = makeRGBARef('boxtl' + variant);
-    const trRef = makeRGBARef('boxtr' + variant);
-
-    for (let y = 0; y <= cropH - tlRef.h; y += 2) {
-      for (let x = 0; x <= cropW - tlRef.w; x += 2) {
-        if (!pixelMatch(x, y, tlRef, 25)) continue;
-        // Confirm full match at step=1
-        if (!pixelMatch(x, y, { ...tlRef, h: tlRef.h }, 20)) continue;
-        // Check TR at x+492
-        if (x + 492 + trRef.w <= cropW && pixelMatch(x + 492, y, trRef, 25)) {
-          console.log('[StarScout] JS fallback found dialog at', x, y+cropOffsetY);
-          return { x: x+1, y: cropOffsetY + y + 1, legacy: variant === '_leg' };
-        }
-      }
-    }
-  }
-  return false;
-}
+// ═══════════════════════════════════════════════════════════════════════
+//  DIALOG DETECTION  — original golden-anchor approach (restored)
+//
+//  The RS dialog box has a distinctive gold/brown top frame strip.
+//  We scan the bottom half of the RS window for a horizontal run of
+//  that color ≥400px wide, which reliably identifies the dialog top edge
+//  regardless of UI theme or client scaling.
+//
+//  Anchor color (BGRA from getRegion): B≈38, G≈61, R≈77  →  RGB(77,61,38)
+//  This is the boxtl row-30 color per Skillbert's original dialog source.
+// ═══════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════
 //  MAIN SCAN
@@ -493,49 +393,61 @@ function scanScreen() {
       const rsW = alt1.rsWidth, rsH = alt1.rsHeight;
       if (rsW <= 0 || rsH <= 0) { diagFail('RS window has zero size — is it minimised?'); return; }
 
-      // Dialog is always in the bottom portion of the screen.
-      // Only capture bottom 30% (minimum 200px) to keep capture fast.
-      const cropH   = Math.max(200, Math.floor(rsH * 0.30));
-      const cropY   = rsH - cropH;
+      // Only capture bottom half — dialog always appears there
+      const cropY = Math.floor(rsH * 0.5);
+      const cropH = rsH - cropY;
+      const b64 = alt1.getRegion(0, cropY, rsW, cropH);
+      if (!b64 || !b64.length) {
+        diagFail('getRegion returned empty.\nEnable "View screen" permission.');
+        return;
+      }
+      const raw = atob(b64);
 
-      // Bind the cropped region into Alt1 memory for native sub-image search
-      const imgId = alt1.bindRegion(0, cropY, rsW, cropH);
-      console.log('[StarScout] bindRegion id:', imgId, 'crop:', 0, cropY, rsW, cropH);
-
-      let dialogPos = null;
-
-      if (imgId) {
-        dialogPos = findDialogNative(imgId, rsW, cropH, cropY);
+      // Scan for golden anchor row: a horizontal run ≥400px of the
+      // warm brown/gold top-frame color. getRegion bytes are BGRA:
+      // byte0=B, byte1=G, byte2=R, byte3=A.
+      function isGolden(x, y) {
+        const i = (y * rsW + x) * 4;
+        return Math.abs(raw.charCodeAt(i+2) - 77) <= 14  // R
+            && Math.abs(raw.charCodeAt(i+1) - 61) <= 14  // G
+            && Math.abs(raw.charCodeAt(i+0) - 38) <= 12; // B
       }
 
-      // If native path not available / returned null, fall back to JS scan
-      if (dialogPos === null) {
-        console.log('[StarScout] falling back to JS sub-image scan');
-        const b64crop = alt1.getRegion(0, cropY, rsW, cropH);
-        if (!b64crop) { diagFail('getRegion returned empty.\nEnable "View screen" permission.'); return; }
-        dialogPos = findDialogJS(b64crop, rsW, cropH, cropY);
-      }
-
-      if (!dialogPos) {
-        // Diagnostic: sample a few pixels from the expected dialog area
-        // so the user can see what color we're actually reading
-        const midY = Math.floor(rsH * 0.85);
-        const diagB64 = alt1.getRegion(0, midY, Math.min(rsW, 20), 4);
-        let diagInfo = '';
-        if (diagB64) {
-          const raw = atob(diagB64);
-          diagInfo = ' | sample px(0,' + midY + '): B=' + raw.charCodeAt(0) + ' G=' + raw.charCodeAt(1) + ' R=' + raw.charCodeAt(2);
+      let anchorY = -1, anchorX = -1, anchorW = 0;
+      for (let y = 0; y < cropH && anchorY === -1; y++) {
+        let runStart = -1, runLen = 0;
+        for (let x = 0; x < rsW; x++) {
+          if (isGolden(x, y)) {
+            if (runStart === -1) runStart = x;
+            runLen++;
+          } else {
+            if (runLen >= 400) { anchorY = y; anchorX = runStart; anchorW = runLen; break; }
+            runStart = -1; runLen = 0;
+          }
         }
-        diagFail('Dialog frame not found.\nMake sure the telescope dialog is fully visible, then scan.' + diagInfo);
+        if (runLen >= 400 && anchorY === -1) { anchorY = y; anchorX = runStart; anchorW = runLen; }
+      }
+
+      console.log('[StarScout] golden anchor: y=' + anchorY + ' x=' + anchorX + ' w=' + anchorW);
+
+      if (anchorY === -1) {
+        diagFail('Dialog frame not found.\nMake sure the telescope dialog is fully visible, then scan.');
         return;
       }
 
-      console.log('[StarScout] dialog position:', JSON.stringify(dialogPos));
+      // Reconstruct dialog position from anchor.
+      // The anchor row is ~30px below the top of the boxtl corner image,
+      // so dialog top = cropY + anchorY - 30, inner content at +1.
+      const dialogX = anchorX + 1;
+      const dialogY = cropY + (anchorY - 30) + 1;
+      const DIALOG_W = 506;
+
+      console.log('[StarScout] dialog: x=' + dialogX + ' y=' + dialogY);
       scanText.textContent = 'Dialog found — reading text…';
 
-      // Capture the text strip: dialogPos.x, dialogPos.y+33, 506×80
-      const DIALOG_W = 506;
-      const b64txt = alt1.getRegion(dialogPos.x, dialogPos.y + 33, DIALOG_W, 80);
+      // Capture the text strip: pos.y+33 for 80px tall (per Skillbert readDialog)
+      const textY  = dialogY + 33;
+      const b64txt = alt1.getRegion(dialogX, textY, DIALOG_W, 80);
       if (!b64txt) { diagFail('Failed to capture text region.'); return; }
 
       const textBuf = bgraToRGBA(b64txt, DIALOG_W, 80);
@@ -553,7 +465,7 @@ function scanScreen() {
       const lower = ocrText.toLowerCase();
       if (!lower.includes('shooting star') && !lower.includes('size') &&
           !lower.includes('land in') && !lower.includes('minutes')) {
-        diagFail('OCR text does not look like a star dialog.\nRead: "' + ocrText.substring(0,120) + '"\nMake sure the telescope dialog is open.');
+        diagFail('OCR read text but not a star dialog.\nRead: "' + ocrText.substring(0,120) + '"\nMake sure the telescope dialog is open.');
         return;
       }
 
