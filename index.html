@@ -553,7 +553,7 @@ function scanScreen() {
       const lower = ocrText.toLowerCase();
       if (!lower.includes('shooting star') && !lower.includes('size') &&
           !lower.includes('land in') && !lower.includes('minutes')) {
-        diagFail('OCR text doesn't look like a star dialog.\nRead: "' + ocrText.substring(0,120) + '"\nMake sure the telescope dialog is open.');
+        diagFail('OCR text does not look like a star dialog.\nRead: "' + ocrText.substring(0,120) + '"\nMake sure the telescope dialog is open.');
         return;
       }
 
