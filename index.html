@@ -243,7 +243,7 @@ function canblend(rm, gm, bm, r1, g1, b1, p) {
 function readChar(buf, x, y) {
   const font = FONT_8PX;
   const top  = y - font.basey;
-  if (top < 0 || top + font.height >= buf.height) return null;
+  if (top < 0 || top + font.height > buf.height) return null;
   if (x < 0  || x + font.width  > buf.width)     return null;
 
   let bestScore = 400;
@@ -285,12 +285,14 @@ function readDialogLines(buf) {
   const font = FONT_8PX;
   const { data, width, height } = buf;
 
-  // Find rows containing black text pixels (r+g+b < 50) in centre columns
+  // Find rows containing black text pixels (r+g+b < 50).
+  // Scan x=50..450 rather than the narrow 200..300 centre window —
+  // text position varies by dialog content and client scaling.
   const textRows = [];
   for (let y = 0; y < height; y++) {
-    for (let x = 200; x < 300; x++) {
+    for (let x = 50; x < 450; x++) {
       const i = (y * width + x) * 4;
-      if (data[i] + data[i+1] + data[i+2] < 50) { textRows.push(y); break; }
+      if (data[i] + data[i+1] + data[i+2] < 80) { textRows.push(y); break; }
     }
   }
   if (!textRows.length) return null;
@@ -314,12 +316,12 @@ function readDialogLines(buf) {
     for (const ax of [192, 246, 310]) {
       const ch = readChar(buf, ax, baseline);
       if (!ch) continue;
-      // Walk backward to find true line start
+      // Walk backward pixel by pixel to find true line start
       let sx = ax;
-      for (let guard = 0; guard < 60 && sx > 0; guard++) {
-        const prev = readChar(buf, sx - ch.def.width, baseline);
+      while (sx > 0) {
+        const prev = readChar(buf, sx - 1, baseline);
         if (!prev) break;
-        sx -= prev.def.width;
+        sx--;
       }
       const line = readLine(buf, sx, baseline);
       if (line && line.length >= 3) { foundLine = line; break; }
