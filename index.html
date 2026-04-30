@@ -447,10 +447,55 @@ function scanScreen() {
       }
       scanText.textContent = 'Dialog found — reading text…';
 
+      // Use Alt1's native bindReadString — handles any font/scale automatically.
+      // First detect band positions from raw pixel data, then read each line.
       const b64txt = alt1.getRegion(dialogX, textY, DIALOG_W, 85);
       if (!b64txt) { diagFail('Failed to capture text region.'); return; }
+      const raw = atob(b64txt);
 
-      const ocrText = readDialogText(atob(b64txt), DIALOG_W, 85);
+      // Find text rows (dark pixels, sum<120, scanning x=50..450)
+      function isDark(x, y) {
+        if (x < 0 || x >= DIALOG_W || y < 0 || y >= 85) return false;
+        const i = (y * DIALOG_W + x) * 4;
+        return (raw.charCodeAt(i+2) + raw.charCodeAt(i+1) + raw.charCodeAt(i+0)) < 120;
+      }
+      const textRows = [];
+      for (let y = 0; y < 85; y++) {
+        for (let x = 50; x < 450; x++) {
+          if (isDark(x, y)) { textRows.push(y); break; }
+        }
+      }
+      // Group into bands
+      const bands = [];
+      if (textRows.length > 0) {
+        let bs = textRows[0], bl = textRows[0];
+        for (let i = 1; i < textRows.length; i++) {
+          if (textRows[i] - bl > 4) { bands.push({y1:bs, y2:bl}); bs = textRows[i]; }
+          bl = textRows[i];
+        }
+        bands.push({y1:bs, y2:bl});
+      }
+      console.log('[StarScout] bands:', JSON.stringify(bands));
+
+      // Bind and read each band with Alt1's native OCR
+      const imgId = alt1.bindRegion(dialogX, textY, DIALOG_W, 85);
+      if (!imgId) { diagFail('Failed to bind text region.'); return; }
+
+      const readLines = [];
+      for (const band of bands) {
+        if (band.y2 - band.y1 < 2) continue; // skip single-pixel noise bands
+        const ly = band.y2; // baseline = bottom of band
+        for (const font of ['chat', 'chatmono']) {
+          let line = '';
+          try { line = alt1.bindReadString(imgId, font, 0, ly) || ''; } catch(e) {}
+          if (line && line.trim().length > 2) {
+            console.log('[StarScout] read y=' + ly + ' font=' + font + ':', JSON.stringify(line));
+            readLines.push(line.trim());
+            break;
+          }
+        }
+      }
+      const ocrText = readLines.length > 0 ? readLines.join(' ') : null;
       console.log('[StarScout] OCR result:', JSON.stringify(ocrText));
 
       if (!ocrText) {
