@@ -451,13 +451,13 @@ function scanScreen() {
       // First detect band positions from raw pixel data, then read each line.
       const b64txt = alt1.getRegion(dialogX, textY, DIALOG_W, 85);
       if (!b64txt) { diagFail('Failed to capture text region.'); return; }
-      const raw = atob(b64txt);
+      const rawTxt = atob(b64txt);
 
       // Find text rows (dark pixels, sum<120, scanning x=50..450)
       function isDark(x, y) {
         if (x < 0 || x >= DIALOG_W || y < 0 || y >= 85) return false;
         const i = (y * DIALOG_W + x) * 4;
-        return (raw.charCodeAt(i+2) + raw.charCodeAt(i+1) + raw.charCodeAt(i+0)) < 120;
+        return (rawTxt.charCodeAt(i+2) + rawTxt.charCodeAt(i+1) + rawTxt.charCodeAt(i+0)) < 120;
       }
       const textRows = [];
       for (let y = 0; y < 85; y++) {
