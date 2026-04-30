@@ -232,7 +232,7 @@ function readDialogText(raw, imgW, imgH) {
     const r = raw.charCodeAt(i + 2);
     const g = raw.charCodeAt(i + 1);
     const b = raw.charCodeAt(i + 0);
-    return (r + g + b) < 80; // black text threshold
+    return (r + g + b) < 120; // catches anti-aliased dark-brown RS text
   }
 
   // Find rows that contain text pixels (black pixels in x=50..450)
@@ -307,7 +307,7 @@ function readDialogText(raw, imgW, imgH) {
       }
 
       // Score each character at position x
-      let bestChar = null, bestScore = Infinity;
+      let bestChar = null, bestScore = Infinity, bestMatched = 0;
 
       for (const charDef of font.chars) {
         const total = charDef.p.length;
@@ -325,16 +325,18 @@ function readDialogText(raw, imgW, imgH) {
 
         // Score: penalize for missed font pixels, reward for matched
         // Secondary chars (,.') need higher match rate to win
-        const score = missed * 2 - matched + (charDef.s ? 20 : 0);
+        const score = missed * 2 - matched + (charDef.s ? 40 : 0);
 
         if (score < bestScore) {
-          bestScore = score;
-          bestChar  = charDef;
+          bestScore   = score;
+          bestChar    = charDef;
+          bestMatched = matched;
         }
       }
 
       const total = bestChar ? bestChar.p.length : 1;
-      if (bestChar && bestScore < total * 1.5) {
+      // Require: score beats threshold AND at least 25% of font pixels matched
+      if (bestChar && bestScore < total * 1.2 && bestMatched >= Math.ceil(total * 0.25)) {
         lineText += bestChar.c;
         x += bestChar.w + 1; // +1 for char spacing
       } else {
