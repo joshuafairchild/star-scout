@@ -426,7 +426,9 @@ function scanScreen() {
       // The golden anchor finds the warm-brown horizontal strip.
       // Log the anchor details so we can verify the offset is correct.
       const dialogX = anchorX + 1;
-      const dialogY = cropY + (anchorY - 130) + 1;
+      // anchor row is the golden strip; parchment text starts ~64px below it.
+      // dialogY + 33 must equal cropY + anchorY + 64, so dialogY = cropY + anchorY + 31.
+      const dialogY = cropY + anchorY + 31;
       const DIALOG_W = 506;
       const textY    = dialogY + 33;
 
