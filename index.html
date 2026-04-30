@@ -222,48 +222,49 @@ function parseTelescopeText(text) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-//  OCR ENGINE  (ported from @alt1/ocr, adapted for plain RGBA ImageData)
+//  OCR ENGINE  — direct brightness matching for black-on-parchment text
 //
-//  Dialog text is BLACK on parchment — color [0,0,0].
-//  Font pixels are [x, y, alpha] triples.
-//  canblend() scores how well a screen pixel matches that ink coverage.
+//  Font pixel triples [x, y, alpha]: alpha=255 means fully inked (dark),
+//  alpha=0 means background (bright). We measure screen pixel darkness
+//  and score how well it matches expected ink coverage.
+//
+//  score/pixel < 110 = accept; lower = better match.
 // ═══════════════════════════════════════════════════════════════════════
-const TEXT_COL = [0, 0, 0];
 
-function canblend(rm, gm, bm, r1, g1, b1, p) {
-  const m = Math.min(50, p / Math.max(1e-9, 1 - p));
-  const r = rm + (rm - r1) * m;
-  const g = gm + (gm - g1) * m;
-  const b = bm + (bm - b1) * m;
-  return Math.max(-r, -g, -b, r - 255, g - 255, b - 255);
+function pixelDarkness(buf, x, y) {
+  const i = (y * buf.width + x) * 4;
+  return 255 - ((buf.data[i] + buf.data[i+1] + buf.data[i+2]) / 3);
 }
 
-// buf: { data: Uint8ClampedArray RGBA, width, height }
-// x = left edge of char domain, y = baseline row (basey-relative)
 function readChar(buf, x, y) {
   const font = FONT_8PX;
   const top  = y - font.basey;
   if (top < 0 || top + font.height > buf.height) return null;
   if (x < 0  || x + font.width  > buf.width)     return null;
 
-  let bestScore = 400;
+  let bestScore = Infinity;
   let bestChr   = null;
+
   for (const ch of font.chars) {
     if (ch.secondary) continue;
-    let score = 0;
     const px = ch.pixels;
+    if (px.length === 0) continue;
+
+    let totalErr = 0;
     for (let a = 0; a < px.length; a += 3) {
-      const bi = ((top + px[a+1]) * buf.width + (x + px[a])) * 4;
-      score += Math.max(0, canblend(
-        buf.data[bi], buf.data[bi+1], buf.data[bi+2],
-        TEXT_COL[0], TEXT_COL[1], TEXT_COL[2],
-        px[a+2] / 255
-      ));
+      const expected = px[a+2];
+      const actual   = pixelDarkness(buf, x + px[a], top + px[a+1]);
+      const diff     = expected - actual;
+      totalErr += diff > 0 ? diff * 2 : -diff;
     }
-    const sz = score - ch.bonus;
-    if (sz < bestScore) { bestScore = sz; bestChr = ch; }
+
+    const normScore = totalErr / (px.length / 3);
+    if (normScore < bestScore) { bestScore = normScore; bestChr = ch; }
   }
-  return bestChr ? { chr: bestChr.chr, def: bestChr, x, y, score: bestScore } : null;
+
+  return (bestChr && bestScore < 110)
+    ? { chr: bestChr.chr, def: bestChr, x, y, score: bestScore }
+    : null;
 }
 
 function readLine(buf, x, y) {
