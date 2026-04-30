@@ -310,7 +310,10 @@ function readDialogLines(buf) {
 
   const lines = [];
   for (const band of bands) {
-    const baseline = band.y2;
+    // Clamp baseline so the font window (top = baseline - basey, h = font.height)
+    // stays within the buffer. basey=8, height=12 → need baseline <= height - 1 - (height - basey) = bufH - height + basey - 1
+    const maxBaseline = height - font.height + font.basey - 1;
+    const baseline = Math.min(band.y2, maxBaseline);
     let foundLine = '';
 
     // Try Skillbert's 3 anchor x-positions first
@@ -330,7 +333,7 @@ function readDialogLines(buf) {
 
     // Fallback: scan left-to-right from x=20
     if (!foundLine) {
-      for (let sx = 20; sx < width - font.width && !foundLine; sx++) {
+      for (let sx = 100; sx < width - font.width && !foundLine; sx++) {
         const ch = readChar(buf, sx, baseline);
         if (ch) {
           const line = readLine(buf, sx, baseline);
@@ -450,10 +453,10 @@ function scanScreen() {
 
       // Capture the text strip: pos.y+33 for 80px tall (per Skillbert readDialog)
       const textY  = dialogY + 33;
-      const b64txt = alt1.getRegion(dialogX, textY, DIALOG_W, 80);
+      const b64txt = alt1.getRegion(dialogX, textY, DIALOG_W, 85);
       if (!b64txt) { diagFail('Failed to capture text region.'); return; }
 
-      const textBuf = bgraToRGBA(b64txt, DIALOG_W, 80);
+      const textBuf = bgraToRGBA(b64txt, DIALOG_W, 85);
       const ocrText = readDialogLines(textBuf);
       console.log('[StarScout] OCR result:', JSON.stringify(ocrText));
 
