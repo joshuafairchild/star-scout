@@ -7,73 +7,355 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
 <style>
+/* ── Design tokens ── */
 :root {
-  --gold: #c8a84b; --gold-light: #e8c96a; --gold-dim: #7a6030;
-  --bg-dark: #0e0b07; --bg-panel: #1a1409; --bg-inset: #110e06;
-  --border: #3a2e12; --border-hi: #5a4820;
-  --text: #d4c090; --text-dim: #8a7850;
-  --star-blue: #7ab8e8; --star-glow: #4a90c8;
-  --green: #5db86a; --red: #c85050;
+  --gold:       #c8a84b;
+  --gold-light: #e8c96a;
+  --gold-dim:   #7a6030;
+  --gold-faint: rgba(200,168,75,0.08);
+  --bg-dark:    #0d0b08;
+  --bg-panel:   #19140a;
+  --bg-inset:   #100d06;
+  --bg-card:    #141009;
+  --border:     #352a10;
+  --border-hi:  #524018;
+  --text:       #d4c090;
+  --text-dim:   #8a7850;
+  --text-faint: #554530;
+  --star-blue:  #7ab8e8;
+  --star-glow:  #4a90c8;
+  --green:      #5db86a;
+  --red:        #c85050;
+  --orange:     #c8883a;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Crimson Text', Georgia, serif; background: var(--bg-dark); color: var(--text); font-size: 14px; min-height: 100vh; overflow-x: hidden; }
-.header { background: linear-gradient(180deg, #251c08 0%, var(--bg-panel) 100%); border-bottom: 2px solid var(--border-hi); padding: 8px 12px 6px; display: flex; align-items: center; gap: 10px; position: relative; }
-.header::after { content: ''; position: absolute; bottom: -4px; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--gold-dim), transparent); }
-.header-icon { font-size: 22px; filter: drop-shadow(0 0 6px var(--star-glow)); }
-.header-title { font-family: 'Cinzel', serif; font-size: 15px; font-weight: 700; color: var(--gold-light); letter-spacing: 1px; text-shadow: 0 0 12px rgba(200,168,75,0.4); }
-.header-sub { font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px; margin-top: 1px; }
-.alt1-badge { margin-left: auto; font-size: 9px; font-family: 'Cinzel', serif; color: var(--gold-dim); border: 1px solid var(--border); padding: 2px 5px; border-radius: 2px; letter-spacing: 0.5px; }
-.section { padding: 10px 12px 8px; border-bottom: 1px solid var(--border); }
-.section-label { font-family: 'Cinzel', serif; font-size: 9px; color: var(--gold-dim); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
-.world-row { display: flex; gap: 8px; align-items: center; }
-.world-input-wrap { position: relative; flex: 1; }
-.world-input-wrap label { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 13px; pointer-events: none; transition: opacity 0.2s; }
-.world-input-wrap.has-value label { opacity: 0; }
-input[type="number"] { width: 100%; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 3px; color: var(--gold-light); font-family: 'Cinzel', serif; font-size: 14px; padding: 7px 10px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; -moz-appearance: textfield; }
-input[type="number"]::-webkit-inner-spin-button { display: none; }
-input[type="number"]:focus { border-color: var(--gold-dim); box-shadow: 0 0 8px rgba(200,168,75,0.15); }
-.world-detected { font-size: 11px; color: var(--green); display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-.world-detected .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 4px var(--green); }
-.world-detected.no-detect { color: var(--text-dim); }
-.world-detected.no-detect .dot { background: var(--text-dim); box-shadow: none; }
-.btn { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.5px; border: 1px solid var(--border-hi); border-radius: 3px; cursor: pointer; padding: 7px 12px; transition: all 0.15s; white-space: nowrap; }
-.btn-primary { background: linear-gradient(180deg, #2a2008 0%, #1a1208 100%); color: var(--gold-light); border-color: var(--gold-dim); }
-.btn-primary:hover { background: linear-gradient(180deg, #3a2e10 0%, #252010 100%); border-color: var(--gold); box-shadow: 0 0 10px rgba(200,168,75,0.2); }
-.btn-primary:active { transform: translateY(1px); }
-.btn-secondary { background: var(--bg-inset); color: var(--text-dim); }
-.btn-secondary:hover { border-color: var(--gold-dim); color: var(--text); }
-.scan-area { background: var(--bg-inset); border: 1px dashed var(--border-hi); border-radius: 4px; padding: 10px; min-height: 70px; font-size: 12px; color: var(--text-dim); font-family: 'Crimson Text', serif; font-style: italic; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.5; margin-top: 8px; transition: border-color 0.3s, background 0.3s; cursor: pointer; position: relative; overflow: hidden; }
-.scan-area.scanning { border-color: var(--star-blue); background: #0a1020; }
-.scan-area.success { border-color: var(--green); border-style: solid; background: #0a150a; color: var(--text); font-style: normal; }
-.scan-area.error { border-color: var(--red); border-style: solid; color: var(--red); }
-.scan-pulse { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 10px; height: 10px; border-radius: 50%; background: var(--star-blue); animation: pulse-scan 1s ease-out infinite; display: none; }
-.scan-area.scanning .scan-pulse { display: block; }
-@keyframes pulse-scan { 0% { transform: translate(-50%,-50%) scale(1); opacity: 1; } 100% { transform: translate(-50%,-50%) scale(8); opacity: 0; } }
-.manual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
-.field-wrap { display: flex; flex-direction: column; gap: 4px; }
-.field-label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px; font-family: 'Cinzel', serif; }
-select, input[type="number"].small { background: var(--bg-inset); border: 1px solid var(--border); border-radius: 3px; color: var(--gold-light); font-family: 'Crimson Text', serif; font-size: 13px; padding: 6px 8px; outline: none; width: 100%; transition: border-color 0.2s; }
-select:focus, input[type="number"].small:focus { border-color: var(--gold-dim); }
-select option { background: #1a1409; color: var(--text); }
-.output-section { padding: 10px 12px; }
-.output-box { background: var(--bg-inset); border: 1px solid var(--border-hi); border-radius: 4px; padding: 10px 12px; font-family: 'Cinzel', serif; font-size: 12px; color: var(--gold-light); letter-spacing: 0.3px; min-height: 38px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; word-break: break-all; }
-.output-box.empty { color: var(--text-dim); font-family: 'Crimson Text', serif; font-style: italic; font-size: 13px; }
-.output-box .tag { background: rgba(200,168,75,0.1); border: 1px solid var(--gold-dim); padding: 1px 5px; border-radius: 2px; font-size: 11px; white-space: nowrap; }
-.copy-row { display: flex; gap: 8px; margin-top: 8px; }
-.copy-row .btn { flex: 1; }
-.status-bar { padding: 6px 12px; background: var(--bg-panel); border-top: 1px solid var(--border); font-size: 10px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
-.status-indicator { width: 6px; height: 6px; border-radius: 50%; background: var(--gold-dim); flex-shrink: 0; }
-.status-indicator.ok { background: var(--green); box-shadow: 0 0 4px var(--green); }
-.status-indicator.err { background: var(--red); }
-.divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 2px 0; }
-.copy-flash { position: fixed; bottom: 36px; left: 50%; transform: translateX(-50%) translateY(10px); background: #1a2a1a; border: 1px solid var(--green); color: var(--green); font-family: 'Cinzel', serif; font-size: 11px; padding: 6px 14px; border-radius: 3px; opacity: 0; transition: all 0.2s; pointer-events: none; white-space: nowrap; }
-.copy-flash.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-.star-shimmer { display: inline-block; animation: shimmer 2s ease-in-out infinite; }
-@keyframes shimmer { 0%, 100% { filter: drop-shadow(0 0 4px var(--star-glow)); } 50% { filter: drop-shadow(0 0 12px #a0d4ff); } }
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+html,body{
+  font-family:'Crimson Text',Georgia,serif;
+  background:var(--bg-dark);
+  color:var(--text);
+  font-size:14px;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg-inset)}
+::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:2px}
+
+/* ── Header ── */
+.header{
+  background:linear-gradient(180deg,#201808 0%,var(--bg-panel) 100%);
+  border-bottom:2px solid var(--border-hi);
+  padding:8px 12px 7px;
+  display:flex;align-items:center;gap:10px;
+  position:relative;
+}
+.header::after{
+  content:'';position:absolute;bottom:-4px;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold-dim),transparent);
+}
+.header-icon{font-size:22px;filter:drop-shadow(0 0 6px var(--star-glow))}
+.header-title{
+  font-family:'Cinzel',serif;font-size:15px;font-weight:700;
+  color:var(--gold-light);letter-spacing:1px;
+  text-shadow:0 0 14px rgba(200,168,75,0.45);
+}
+.header-sub{font-size:10px;color:var(--text-dim);letter-spacing:0.5px;margin-top:1px}
+.alt1-badge{
+  margin-left:auto;font-size:9px;font-family:'Cinzel',serif;
+  color:var(--gold-dim);border:1px solid var(--border);
+  padding:2px 6px;border-radius:2px;letter-spacing:0.5px;
+}
+
+/* ── Tabs ── */
+.tabs{
+  display:flex;border-bottom:1px solid var(--border);
+  background:var(--bg-panel);
+}
+.tab{
+  flex:1;padding:7px 4px 6px;text-align:center;cursor:pointer;
+  font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.8px;
+  color:var(--text-dim);border-bottom:2px solid transparent;
+  transition:color .15s,border-color .15s;
+  user-select:none;
+}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--gold-light);border-bottom-color:var(--gold)}
+
+/* ── Tab panels ── */
+.tab-panel{display:none;flex-direction:column}
+.tab-panel.active{display:flex}
+
+/* ────────────────────────────────────────
+   SCOUT TAB
+──────────────────────────────────────── */
+.section{padding:10px 12px 8px;border-bottom:1px solid var(--border)}
+.section-label{
+  font-family:'Cinzel',serif;font-size:9px;color:var(--gold-dim);
+  letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;
+}
+
+/* world row */
+.world-row{display:flex;gap:8px;align-items:center}
+.world-input-wrap{position:relative;flex:1}
+.world-input-wrap label{
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  color:var(--text-dim);font-size:13px;pointer-events:none;transition:opacity .2s;
+}
+.world-input-wrap.has-value label{opacity:0}
+input[type="number"]{
+  width:100%;background:var(--bg-inset);border:1px solid var(--border);
+  border-radius:3px;color:var(--gold-light);font-family:'Cinzel',serif;
+  font-size:14px;padding:7px 10px;outline:none;
+  transition:border-color .2s,box-shadow .2s;-moz-appearance:textfield;
+}
+input[type="number"]::-webkit-inner-spin-button{display:none}
+input[type="number"]:focus{border-color:var(--gold-dim);box-shadow:0 0 8px rgba(200,168,75,.15)}
+.world-detected{
+  font-size:11px;color:var(--green);display:flex;align-items:center;
+  gap:4px;white-space:nowrap;
+}
+.world-detected .dot{
+  width:6px;height:6px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 4px var(--green);
+}
+.world-detected.no-detect{color:var(--text-dim)}
+.world-detected.no-detect .dot{background:var(--text-dim);box-shadow:none}
+
+/* buttons */
+.btn{
+  font-family:'Cinzel',serif;font-size:11px;letter-spacing:.5px;
+  border:1px solid var(--border-hi);border-radius:3px;cursor:pointer;
+  padding:7px 12px;transition:all .15s;white-space:nowrap;
+}
+.btn-primary{
+  background:linear-gradient(180deg,#2a2008 0%,#1a1208 100%);
+  color:var(--gold-light);border-color:var(--gold-dim);
+}
+.btn-primary:hover{
+  background:linear-gradient(180deg,#3a2e10 0%,#252010 100%);
+  border-color:var(--gold);box-shadow:0 0 10px rgba(200,168,75,.2);
+}
+.btn-primary:active{transform:translateY(1px)}
+.btn-secondary{background:var(--bg-inset);color:var(--text-dim)}
+.btn-secondary:hover{border-color:var(--gold-dim);color:var(--text)}
+
+/* scan area */
+.scan-area{
+  background:var(--bg-inset);border:1px dashed var(--border-hi);
+  border-radius:4px;padding:10px;min-height:70px;font-size:12px;
+  color:var(--text-dim);font-family:'Crimson Text',serif;font-style:italic;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  line-height:1.5;margin-top:8px;transition:border-color .3s,background .3s;
+  cursor:pointer;position:relative;overflow:hidden;
+}
+.scan-area.scanning{border-color:var(--star-blue);background:#0a1020}
+.scan-area.success{
+  border-color:var(--green);border-style:solid;background:#0a150a;
+  color:var(--text);font-style:normal;
+}
+.scan-area.error{border-color:var(--red);border-style:solid;color:var(--red)}
+.scan-pulse{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:10px;height:10px;border-radius:50%;background:var(--star-blue);
+  animation:pulse-scan 1s ease-out infinite;display:none;
+}
+.scan-area.scanning .scan-pulse{display:block}
+@keyframes pulse-scan{
+  0%{transform:translate(-50%,-50%) scale(1);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(8);opacity:0}
+}
+
+/* manual grid */
+.manual-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.field-wrap{display:flex;flex-direction:column;gap:4px}
+.field-label{font-size:10px;color:var(--text-dim);letter-spacing:.5px;font-family:'Cinzel',serif}
+select,input[type="number"].small{
+  background:var(--bg-inset);border:1px solid var(--border);border-radius:3px;
+  color:var(--gold-light);font-family:'Crimson Text',serif;font-size:13px;
+  padding:6px 8px;outline:none;width:100%;transition:border-color .2s;
+}
+select:focus,input[type="number"].small:focus{border-color:var(--gold-dim)}
+select option{background:#1a1409;color:var(--text)}
+
+/* output */
+.output-section{padding:10px 12px}
+.output-box{
+  background:var(--bg-inset);border:1px solid var(--border-hi);border-radius:4px;
+  padding:10px 12px;font-family:'Cinzel',serif;font-size:12px;
+  color:var(--gold-light);letter-spacing:.3px;min-height:38px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;word-break:break-all;
+}
+.output-box.empty{color:var(--text-dim);font-family:'Crimson Text',serif;font-style:italic;font-size:13px}
+.output-box .tag{
+  background:rgba(200,168,75,.1);border:1px solid var(--gold-dim);
+  padding:1px 5px;border-radius:2px;font-size:11px;white-space:nowrap;
+}
+.copy-row{display:flex;gap:8px;margin-top:8px}
+.copy-row .btn{flex:1}
+
+/* status */
+.status-bar{
+  padding:6px 12px;background:var(--bg-panel);border-top:1px solid var(--border);
+  font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:6px;
+}
+.status-indicator{width:6px;height:6px;border-radius:50%;background:var(--gold-dim);flex-shrink:0}
+.status-indicator.ok{background:var(--green);box-shadow:0 0 4px var(--green)}
+.status-indicator.err{background:var(--red)}
+
+/* copy flash */
+.copy-flash{
+  position:fixed;bottom:36px;left:50%;transform:translateX(-50%) translateY(10px);
+  background:#1a2a1a;border:1px solid var(--green);color:var(--green);
+  font-family:'Cinzel',serif;font-size:11px;padding:6px 14px;border-radius:3px;
+  opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap;
+}
+.copy-flash.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* divider */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:2px 0}
+
+/* shimmer */
+.star-shimmer{display:inline-block;animation:shimmer 2s ease-in-out infinite}
+@keyframes shimmer{
+  0%,100%{filter:drop-shadow(0 0 4px var(--star-glow))}
+  50%{filter:drop-shadow(0 0 12px #a0d4ff)}
+}
+
+/* ────────────────────────────────────────
+   STARS TAB — public list
+──────────────────────────────────────── */
+.stars-toolbar{
+  padding:8px 12px;border-bottom:1px solid var(--border);
+  display:flex;gap:6px;align-items:center;
+}
+.stars-toolbar input{
+  flex:1;background:var(--bg-inset);border:1px solid var(--border);border-radius:3px;
+  color:var(--gold-light);font-family:'Crimson Text',serif;font-size:13px;
+  padding:5px 8px;outline:none;transition:border-color .2s;
+}
+.stars-toolbar input:focus{border-color:var(--gold-dim)}
+.stars-toolbar input::placeholder{color:var(--text-faint)}
+.stars-toolbar select{
+  background:var(--bg-inset);border:1px solid var(--border);border-radius:3px;
+  color:var(--text-dim);font-family:'Crimson Text',serif;font-size:12px;
+  padding:5px 6px;outline:none;
+}
+
+.star-list{
+  flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:6px;
+}
+.star-list.loading{
+  align-items:center;justify-content:center;
+  color:var(--text-dim);font-style:italic;font-size:13px;
+}
+
+/* star card */
+.star-card{
+  background:var(--bg-card);border:1px solid var(--border);border-radius:4px;
+  padding:8px 10px;transition:border-color .15s,background .15s;
+  cursor:pointer;position:relative;overflow:hidden;
+}
+.star-card:hover{border-color:var(--border-hi);background:var(--bg-panel)}
+.star-card::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--gold-dim);opacity:0.6;
+}
+.star-card.tier-high::before{background:var(--green)}
+.star-card.tier-med::before{background:var(--orange)}
+.star-card.tier-low::before{background:var(--red)}
+.star-card.tier-done::before{background:var(--text-faint);opacity:0.3}
+
+.star-card-top{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.star-region{
+  font-family:'Cinzel',serif;font-size:12px;font-weight:600;
+  color:var(--gold-light);flex:1;
+}
+.star-size-badge{
+  font-family:'Cinzel',serif;font-size:10px;
+  background:rgba(200,168,75,.12);border:1px solid var(--gold-dim);
+  padding:1px 6px;border-radius:2px;color:var(--gold);white-space:nowrap;
+}
+.star-size-badge.big{background:rgba(93,184,106,.12);border-color:#4a9a57;color:var(--green)}
+.star-size-badge.small{background:rgba(200,80,80,.12);border-color:#9a4040;color:var(--red)}
+
+.star-card-bottom{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.star-world-badge{
+  font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:3px;
+}
+.star-world-badge span{color:var(--text);font-family:'Cinzel',serif;font-size:11px}
+.star-time{
+  font-size:11px;margin-left:auto;display:flex;align-items:center;gap:4px;
+}
+.star-time-label{color:var(--text-dim)}
+.star-time-val{font-family:'Cinzel',serif;font-size:11px}
+.star-time-val.arriving{color:var(--green)}
+.star-time-val.soon{color:var(--orange)}
+.star-time-val.later{color:var(--text)}
+.star-time-val.expired{color:var(--red)}
+
+/* size bar */
+.star-size-bar{
+  display:flex;gap:2px;align-items:center;margin-left:auto;
+}
+.size-pip{
+  width:8px;height:8px;border-radius:1px;
+  background:var(--border);border:1px solid var(--border-hi);
+}
+.size-pip.filled{background:var(--gold-dim);border-color:var(--gold)}
+.size-pip.filled.high{background:var(--green);border-color:#4a9a57}
+
+.star-empty{
+  text-align:center;padding:24px 12px;
+  color:var(--text-dim);font-style:italic;font-size:13px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+}
+.star-empty .big-star{font-size:28px;filter:drop-shadow(0 0 6px var(--gold-dim));opacity:.4}
+
+/* last-updated */
+.last-updated{
+  padding:4px 12px;font-size:10px;color:var(--text-faint);
+  border-top:1px solid var(--border);text-align:right;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.last-updated button{
+  font-size:10px;font-family:'Cinzel',serif;background:none;border:none;
+  color:var(--text-faint);cursor:pointer;padding:0;
+}
+.last-updated button:hover{color:var(--gold-dim)}
+
+/* add entry form */
+.add-star-section{
+  border-top:1px solid var(--border);padding:8px 12px;
+}
+.add-star-toggle{
+  font-family:'Cinzel',serif;font-size:10px;color:var(--gold-dim);
+  cursor:pointer;letter-spacing:.8px;display:flex;align-items:center;gap:6px;
+  padding:2px 0;
+}
+.add-star-toggle:hover{color:var(--gold)}
+.add-star-toggle .chevron{transition:transform .2s;font-size:8px}
+.add-star-toggle.open .chevron{transform:rotate(90deg)}
+.add-star-form{
+  display:none;flex-direction:column;gap:8px;margin-top:8px;
+}
+.add-star-form.open{display:flex}
+.add-row{display:flex;gap:6px}
+.add-row select,.add-row input{
+  flex:1;background:var(--bg-inset);border:1px solid var(--border);border-radius:3px;
+  color:var(--gold-light);font-family:'Crimson Text',serif;font-size:12px;
+  padding:5px 8px;outline:none;
+}
+.add-row input::placeholder{color:var(--text-faint)}
+.add-row select option{background:#1a1409;color:var(--text)}
 </style>
 </head>
 <body>
 
+<!-- Header -->
 <div class="header">
   <div class="header-icon star-shimmer">★</div>
   <div>
@@ -83,572 +365,364 @@ select option { background: #1a1409; color: var(--text); }
   <div class="alt1-badge">ALT1</div>
 </div>
 
-<div class="section">
-  <div class="section-label">Current World</div>
-  <div class="world-row">
-    <div class="world-input-wrap" id="worldWrap">
-      <label>World number...</label>
-      <input type="number" id="worldInput" min="1" max="999" placeholder="" />
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" data-tab="scout">◉ Scout</div>
+  <div class="tab" data-tab="stars">★ Star List</div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCOUT TAB
+══════════════════════════════════════ -->
+<div class="tab-panel active" id="panel-scout">
+
+  <!-- World -->
+  <div class="section">
+    <div class="section-label">Current World</div>
+    <div class="world-row">
+      <div class="world-input-wrap" id="worldWrap">
+        <label>World number…</label>
+        <input type="number" id="worldInput" min="1" max="999" />
+      </div>
+      <div class="world-detected no-detect" id="worldDetect">
+        <div class="dot"></div>
+        <span id="worldDetectLabel">manual</span>
+      </div>
+      <button class="btn btn-secondary" id="detectWorldBtn" title="Auto-detect world">⟳</button>
     </div>
-    <div class="world-detected no-detect" id="worldDetect">
-      <div class="dot"></div>
-      <span id="worldDetectLabel">manual</span>
+  </div>
+
+  <!-- Scan -->
+  <div class="section">
+    <div class="section-label">Telescope Dialog</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" id="scanBtn" style="flex:1">◉ Scan Screen for Dialog</button>
     </div>
-    <button class="btn btn-secondary" id="detectWorldBtn" title="Auto-detect world from game">⟳</button>
+    <div class="scan-area" id="scanArea">
+      <div class="scan-pulse"></div>
+      <span id="scanText">Use your telescope in-game, then click Scan — or fill in fields below manually.</span>
+    </div>
+  </div>
+
+  <!-- Manual -->
+  <div class="section">
+    <div class="section-label">Manual Entry</div>
+    <div class="manual-grid">
+      <div class="field-wrap">
+        <div class="field-label">Region</div>
+        <select id="regionSelect">
+          <option value="">— Select —</option>
+          <option value="Ana">Ana — Anachronia</option>
+          <option value="Asg">Asg — Asgarnia</option>
+          <option value="Ash">Ash — Ashdale</option>
+          <option value="C/K">C/K — Crandor/Karamja</option>
+          <option value="Daem">Daem — Daemonheim</option>
+          <option value="Des">Des — Kharidian Desert</option>
+          <option value="F/L">F/L — Fremennik/Lunar Isle</option>
+          <option value="Feld">Feld — Feldip Hills</option>
+          <option value="Grove">Grove — The Lost Grove</option>
+          <option value="Kand">Kand — Kandarin</option>
+          <option value="M/M">M/M — Morytania/Mos Le'Harmless</option>
+          <option value="Mena">Mena — Menaphos</option>
+          <option value="Mist">Mist — Misthalin</option>
+          <option value="PGT">PGT — Piscatoris/Gnome/Tirannwn</option>
+          <option value="Wend">Wend — Wendlewick</option>
+          <option value="Wild">Wild — Wilderness</option>
+        </select>
+      </div>
+      <div class="field-wrap">
+        <div class="field-label">Size (1–10)</div>
+        <input type="number" class="small" id="sizeInput" min="1" max="10" placeholder="e.g. 7" />
+      </div>
+      <div class="field-wrap">
+        <div class="field-label">Relative Time (min)</div>
+        <input type="number" class="small" id="timeInput" min="0" max="120" placeholder="e.g. 8" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Output -->
+  <div class="output-section">
+    <div class="section-label" style="margin-bottom:8px">Discord /call Output</div>
+    <div class="output-box empty" id="outputBox">Fill in the fields above to generate your call…</div>
+    <div class="copy-row">
+      <button class="btn btn-primary" id="copyBtn">⎘ Copy to Clipboard</button>
+      <button class="btn btn-secondary" id="addToListBtn">★ Add to List</button>
+      <button class="btn btn-secondary" id="clearBtn">✕</button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Status -->
+  <div class="status-bar">
+    <div class="status-indicator" id="statusDot"></div>
+    <span id="statusText">Ready — waiting for scan or input</span>
   </div>
 </div>
 
-<div class="section">
-  <div class="section-label">Telescope Dialog</div>
-  <div style="display:flex; gap:8px;">
-    <button class="btn btn-primary" id="scanBtn" style="flex:1;">◉ Scan Screen for Dialog</button>
+<!-- ══════════════════════════════════════
+     STARS TAB — public list
+══════════════════════════════════════ -->
+<div class="tab-panel" id="panel-stars">
+
+  <!-- Toolbar -->
+  <div class="stars-toolbar">
+    <input type="text" id="starSearch" placeholder="Filter by region or world…" />
+    <select id="sizeFilter">
+      <option value="">All sizes</option>
+      <option value="high">Size 7–10</option>
+      <option value="med">Size 4–6</option>
+      <option value="low">Size 1–3</option>
+    </select>
+    <button class="btn btn-secondary" id="refreshBtn" title="Refresh list">⟳</button>
   </div>
-  <div class="scan-area" id="scanArea" title="Click to scan">
-    <div class="scan-pulse"></div>
-    <span id="scanText">Use your telescope in-game, then click Scan — or fill in fields below manually.</span>
+
+  <!-- List -->
+  <div class="star-list" id="starList">
+    <div class="star-empty">
+      <div class="big-star">★</div>
+      <span>Loading star reports…</span>
+    </div>
+  </div>
+
+  <!-- Footer row -->
+  <div class="last-updated">
+    <button id="clearExpiredBtn">✕ Clear expired</button>
+    <span id="lastUpdated">—</span>
+  </div>
+
+  <!-- Add entry -->
+  <div class="add-star-section">
+    <div class="add-star-toggle" id="addToggle">
+      <span class="chevron">▶</span>
+      <span>ADD SIGHTING</span>
+    </div>
+    <div class="add-star-form" id="addStarForm">
+      <div class="add-row">
+        <select id="addRegion">
+          <option value="">Region…</option>
+          <option value="Ana">Ana — Anachronia</option>
+          <option value="Asg">Asg — Asgarnia</option>
+          <option value="Ash">Ash — Ashdale</option>
+          <option value="C/K">C/K — Crandor/Karamja</option>
+          <option value="Daem">Daem — Daemonheim</option>
+          <option value="Des">Des — Kharidian Desert</option>
+          <option value="F/L">F/L — Fremennik/Lunar Isle</option>
+          <option value="Feld">Feld — Feldip Hills</option>
+          <option value="Grove">Grove — The Lost Grove</option>
+          <option value="Kand">Kand — Kandarin</option>
+          <option value="M/M">M/M — Morytania/Mos Le'Harmless</option>
+          <option value="Mena">Mena — Menaphos</option>
+          <option value="Mist">Mist — Misthalin</option>
+          <option value="PGT">PGT — Piscatoris/Gnome/Tirannwn</option>
+          <option value="Wend">Wend — Wendlewick</option>
+          <option value="Wild">Wild — Wilderness</option>
+        </select>
+        <input type="number" id="addWorld" min="1" max="999" placeholder="World" />
+      </div>
+      <div class="add-row">
+        <input type="number" id="addSize" min="1" max="10" placeholder="Size (1–10)" />
+        <input type="number" id="addTime" min="0" max="120" placeholder="Time (min)" />
+      </div>
+      <button class="btn btn-primary" id="submitAddBtn" style="width:100%">★ Submit Sighting</button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div class="status-bar">
+    <div class="status-indicator" id="listStatusDot"></div>
+    <span id="listStatusText">Star list — local session only</span>
   </div>
 </div>
 
-<div class="section">
-  <div class="section-label">Manual Entry</div>
-  <div class="manual-grid">
-    <div class="field-wrap">
-      <div class="field-label">Region</div>
-      <select id="regionSelect">
-        <option value="">— Select —</option>
-        <option value="Ana">Ana — Anachronia</option>
-        <option value="Asg">Asg — Asgarnia</option>
-        <option value="Ash">Ash — Ashdale</option>
-        <option value="C/K">C/K — Crandor/Karamja</option>
-        <option value="Daem">Daem — Daemonheim</option>
-        <option value="Des">Des — Kharidian Desert</option>
-        <option value="F/L">F/L — Fremennik/Lunar Isle</option>
-        <option value="Feld">Feld — Feldip Hills</option>
-        <option value="Grove">Grove — The Lost Grove</option>
-        <option value="Kand">Kand — Kandarin</option>
-        <option value="M/M">M/M — Morytania/Mos Le'Harmless</option>
-        <option value="Mena">Mena — Menaphos</option>
-        <option value="Mist">Mist — Misthalin</option>
-        <option value="PGT">PGT — Piscatoris/Gnome/Tirannwn</option>
-        <option value="Wend">Wend — Wendlewick</option>
-        <option value="Wild">Wild — Wilderness</option>
-      </select>
-    </div>
-    <div class="field-wrap">
-      <div class="field-label">Size (1–10)</div>
-      <input type="number" class="small" id="sizeInput" min="1" max="10" placeholder="e.g. 7" />
-    </div>
-    <div class="field-wrap">
-      <div class="field-label">Relative Time (min)</div>
-      <input type="number" class="small" id="timeInput" min="0" max="120" placeholder="e.g. 8" />
-    </div>
-  </div>
-</div>
-
-<div class="output-section">
-  <div class="section-label" style="margin-bottom:8px;">Discord /call Output</div>
-  <div class="output-box empty" id="outputBox">Fill in the fields above to generate your call…</div>
-  <div class="copy-row">
-    <button class="btn btn-primary" id="copyBtn">⎘ Copy to Clipboard</button>
-    <button class="btn btn-secondary" id="clearBtn">✕ Clear</button>
-  </div>
-</div>
-
-<div class="divider"></div>
-<div class="status-bar">
-  <div class="status-indicator" id="statusDot"></div>
-  <span id="statusText">Ready — waiting for scan or input</span>
-</div>
+<!-- Copy flash -->
 <div class="copy-flash" id="copyFlash">✓ Copied to clipboard!</div>
 
 <script>
-// ═══════════════════════════════════════════════════════════════════════
-//  EMBEDDED ASSETS  (dialog corner images and OCR font data
-//  from @alt1/dialog and @alt1/ocr npm packages)
-// ═══════════════════════════════════════════════════════════════════════
-const DIALOG_BGRA = {
-  boxtl: { w: 16, h: 16, bgra: 'Misa/zsyI/8yKxr/Misa/zsyI/87MiP/Misa/zw0Kv8yKxr/OzIj/zsyI/9COiv/Misa/0A3K/8yKxr/Misa/0I6K/8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP9JPy3/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/ST8t/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8ZDQL/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/0I6K/8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8KBQH/AQAA/wEAAP8BAAD/AQAA/wEAAP87MRz/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/Qjor/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/0I6K/8KBQH/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP9COiv/AQAA/wEAAP8BAAD/AQAA/xQNAv8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/OzEc/woFAf8BAAD/AQAA/wEAAP8UDQL/GhIF/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/zsyI/8KBQH/AQAA/wEAAP8BAAD/CgUB/yEaDf8hFQT/CgUB/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP9COiv/AQAA/wEAAP8BAAD/AQAA/xQNAv8UDQL/IRoN/ykdCv8rIxP/KR0K/yQZBf8aEgX/AQAA/w0JA/8BAAD/Qjor/wEAAP8BAAD/DQkD/w0JA/8KBQH/FA0C/woFAf8KBQH/CgUB/xEGAf8aEgX/DQkD/wEAAP8BAAD/CgUB/0I6K/8NCQP/AQAA/wEAAP8BAAD/AQAA/woFAf8aEgX/CgUB/woFAf8KBQH/CgUB/wEAAP8BAAD/AQAA/xoSBf9CNyX/FA0C/woFAf8KBQH/AQAA/woFAf8KBQH/CgUB/xQNAv8UDQL/CgUB/xoSBf8BAAD/AQAA/wEAAP8aEgX/OzIj/woFAf8BAAD/CgUB/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/woFAf8UDQL/CgUB/wEAAP8BAAD/IRUE/w==' },
-  boxtr: { w: 16, h: 16, bgra: 'OzIj/0I3Jf87MiP/Misa/0I6K/87MiP/Miwh/zsyI/8yKxr/OzIj/zsyI/9COiv/Qjor/zsyI/8yKxr/Misa/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/0I6K/8KBQH/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP9JPy3/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/ST8t/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/0I6K/8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP87MRz/AQAA/xQNAv8RBgH/IRUE/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/woFAf8UDQL/Qjor/woFAf8KBQH/AQAA/woFAf8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/xkNAv8hGg3/IRoN/0I6K/////8A////AP///wD///8A////AP///wD///8A////AAEAAP8BAAD/AQAA/woFAf8hFQT/FA0C/xoSBf9COiv/////AP///wD///8A////AP///wD///8A////AP///wABAAD/AQAA/wEAAP8aEgX/FA0C/woFAf8KBQH/OzEc/////wD///8A////AP///wD///8A////AP///wD///8AAQAA/wEAAP8KBQH/IRUE/xQNAv8KBQH/CgUB/zsyI/////8A////AP///wD///8A////AP///wD///8A////AAEAAP8BAAD/DQkD/xEGAf8UDQL/GQ0C/xQNAv9COiv/////AP///wD///8A////AP///wD///8A////AP///wABAAD/AQAA/xQNAv8ZDQL/FA0C/xEGAf8KBQH/Qjor/////wD///8A////AP///wD///8A////AP///wD///8AAQAA/woFAf8UDQL/GhIF/xQNAv8hFQT/GhIF/0I6K/////8A////AP///wD///8A////AP///wD///8A////AAEAAP8BAAD/DQkD/xQNAv8hFQT/GhIF/yEaDf9CNyX/////AP///wD///8A////AP///wD///8A////AP///wANCQP/CgUB/woFAf8WEAT/IRUE/yEVBP8qIAz/OzIj/w==' },
-  boxtl_leg: { w: 16, h: 16, bgra: 'U2Rs/wAAAP8AAAD/AAAA/wAAAP8AAAD/9/X0/wkLDP8AAAD/AQUE///7/P8BBQT///v8/wEFBP//+/z/AQUE/xUjKf8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8BAAD/AQAA/wEAAP8YJiv/QUVK/wwNDf/v8e7///v8/wEFBP8FAgX/+vn3//n9/v8ICAb/CwcH/wAAAP/09PX/AQUE/wUCBf8AAAD/Gyox/xETE/8HBwf/8e7u/wEGB/8aGRj/7ezs/woLCv/v8PL/DgwL/wAAAP8AAAD/+fn5/wAAAP8CAwT//v38/wAAAP8CAwT/AAAA/w8SEv8REA7/7ezs/wAAAP/29fb/EhEQ//v8/f8EBQX/BwcH/wcHB/8KCwr//v38/wcHB//9/Pr/AAAA/wAAAP8AAAD//fz9/wcHB/8HBwf/BwcH//f39v8AAAD/9/f4/wAAAP8AAAD/AAAA/wcHB/8AAAD/AAAA/wUEA/8AAAD/BAUF/wMEA/8AAAD/AAAA/wAAAP8FBAX/BQQD/wAAAP/5+fn/AAAA//38/f8AAAD/AAAA/wAAAP8AAAD/AAAA//z7+//9/P3/AAAA/wAAAP8AAAD/AAAA/wAAAP8FBAP/AAAA/wAAAP8AAAD/+/z7/wAAAP8DBAb/AAAA/wcHB/8AAAD/AAAA/wAAAP8EBQX/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wUEBf8AAAD/AAAA/wAAAP/5+fn/AAAA/wAAAP8AAAD//Pv7/wAAAP8AAAD/AAAA/wAAAP8AAAD/+/z7/wAAAP/7/Pv/+fn5/wAAAP8DBAP/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/+fn5/wUEBf8AAAD/BQQF/wcHB//6+fj/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wcHB/8AAAD/AAAA/wMEA/8AAAD/BgcI//38/f8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP/9/P3/AAAA/xIUFP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wMEA/8AAAD/AAAA/wAAAP8AAAD/AwQD/wMEA//u7Oz/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8BAQL/AwQD/wAAAP8AAAD/AAAA/wEBAv8EAwT/AAAA/wMEA/8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD//Pv7//38/f8AAAD/AAAA/wAAAP/8+/v/+fn5/w==' },
-  boxtr_leg: { w: 16, h: 16, bgra: 'a36H//v6+ADn5eUABgcIAAACAQABAQIA///+AAEBAgD///4AAwQFAAH+AAD5+/kA/wEBAAkIBgAHBAUA9PT1AAEAAP8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABQjKQBUaXD/BQIFAPr59wD5/f4ACAgGAAsHBwAAAAAA9PT1AAEFBAAFAgUAAAAAAAwNDQDu7OoAAQUEAAUCBQC/u7YAP1FY/+3s7AAKCwoA7/DyAA4MCwAAAAAAAAAAAPn5+QAAAAAAAgMEAP79/AACAwQADAsKAPT19gD+/fwA7+3tAO3s7AAAAAAA9vX2ABIREAD7/P0ABAUFAAcHBwAHBwcACgsKAP79/AAHBwcA/v38APLy8gD+/fwAAAAAAAAAAAAHBwcABwcHAAcHBwD39/YAAAAAAPf3+AAAAAAAAAAAAAAAAAAHBwcAAAAAAA4ODgAHBwcABwcHAAIDAgD9/PoAAAAAAAAAAAAAAAAABQQFAAUEAwAAAAAA+fn5AAAAAAD9/P0AAAAAAAAAAAD5+fkAAAAAAAAAAAAFBAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABQQDAAAAAAAAAAAAAAAAAPv8+wAAAAAAAAAAAAAAAAD5+fkAAAAAAAAAAAD///8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADRFTP8AAAAAAAAAAAAAAAAAAAAAAAAAAAMEAwDl4uMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA+/z7APn5+QAAAAAAAAAAAAAAAAAEAwQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUEBQAHBwcAAAAAAAAAAAAAAAAA+fn5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADBAMAAAAAAAAAAAAAAAAAAAAAAAAAAAD6+fgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/fz9AAAAAAAEBQUAAwQDAAAAAAAAAAAABgcIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMEAwADBAMA/Pv7AP38/QAAAAAAAAAAABIUFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQIABAMEAAQFBQAEBQUAAAAAAAAAAADu7OwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/Pv7APn5+QD8+/sA/Pv7AAMEAwAAAAAAAAAAAA==' },
-  cont: { w: 74, h: 13, bgra: 'TNjw/1Ts/P9U7Pz/VOz8/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1Ts/P9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1Ts/P9U7Pz/VOz8/1Ts/P9U7Pz/VOz8/1Ts/P9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1bz/v9W8/7/VvP+/1Ts/P9U7Pz/VOz8/0zY8P9J1v7/Sdb+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/0nW/v9M2PD/ZMXW/0zY8P9J1v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9O4v7/TuL+/07i/v9J1v7/Sdb+/0LK+/9E1f7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Qsr7/3Ssuf+vo4r/dKy5/0LK+/9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9J1v7/Sdb+/0nW/v9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/90rLn/r6OK/6+jiv+vo4r/dKy5/0G+7f9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/9Cyvv/Qsr7/0LK+/87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/PMf0/3Ssuf+vo4r/r6OK/6+jiv+vo4r/dKy5/0G+7f88x/T/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v88x/T/O6ri/3Ssuf+vo4r/r6OK/6+jiv+vo4r/dKy5/zHH9f87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/O8P6/zvD+v87w/r/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8bldj/G5XY/29saP9vYkz/b2JM/29iTP9vYkz/No25/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8jouf/I6Ln/yOi5/8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/G5XY/xuV2P8/cYj/b2JM/29iTP9vYkz/b2JM/z9xiP8bldj/G5XY/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/Hp3i/x6d4v8eneL/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/P3GI/29iTP9vYkz/b2JM/29iTP8/cYj/FYvP/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/G5XY/xuV2P8bldj/FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/w6AxP8/cYj/b2JM/29iTP9vYkz/P3GI/w6AxP8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8Vi8//FYvP/xWLz/8OfsP/Dn7D/w5+w/8OgMT/DoDE/w5+w/8OgMT/DoDE/w5+w/8OgMT/DoDE/w5+w/8OgMT/DoDE/w6AxP8OgMT/Dn7D/w6AxP8OgMT/DoDE/w6AxP8OfsP/DoDE/w6AxP8OfsP/Dn7D/w5+w/8OgMT/Dn7D/w6AxP8OgMT/Dn7D/w6AxP8OfsP/Dn7D/wlxt/8/cYj/b2JM/z9xiP8Jcbf/CXG3/w5+w/8OgMT/Dn7D/w5+w/8OgMT/Dn7D/w6AxP8OgMT/DoDE/w6AxP8OfsP/DoDE/w6AxP8OfsP/Dn7D/w6AxP8OfsP/DoDE/w5+w/8OgMT/DoDE/w6AxP8OgMT/DoDE/w6AxP8OgMT/DoDE/w6AxP8OfsP/DoDE/w5+w/8OfsP/Dn7D/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/BGqv/wRqr/8wb5P/BGqv/wRqr/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/CXG3/wlxt/8Jcbf/AF+l/wBas/8DZq3/A2at/wNmrf8DZq3/A2at/wNmrf8DZq3/A2at/wRqr/8DZq3/A2at/wNmrf8Eaq//A2at/wRqr/8DZq3/A2at/wNmrf8DZq3/A2at/wNmrf8Eaq//A2at/wNmrf8Eaq//BGqv/wNmrf8Eaq//BGqv/wNmrf8DZq3/A2at/wNmrf8DZq3/A2at/wNmrf8DZq3/A2at/wRqr/8DZq3/A2at/wNmrf8Eaq//A2at/wNmrf8DZq3/A2at/wNmrf8DZq3/A2at/wRqr/8DZq3/BGqv/wNmrf8DZq3/BGqv/wRqr/8Eaq//A2at/wNmrf8DZq3/A2at/wNmrf8DZq3/A2at/wNmrf8DZq3/A2at/wNmrf8DZq3/BGqv/wBfpf8=' },
-  cont_leg: { w: 74, h: 13, bgra: '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' },
-  contdown: { w: 74, h: 13, bgra: 'AVCL/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wBfpf8AX6X/AF+l/wFQi/8DZq3/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHXE/wB1xP8Ac7z/BGqv/wBzvP8AdcT/AHXE/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/A2at/wRqr/8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8Aesb/AHrG/z9xiP9lYl//P3GI/wB6xv8Aesb/AIDL/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8Eaq//AHO8/wCC0f8AiNb/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCC0f8wb5P/ZWJf/2ViX/9lYl//MG+T/wCAy/8AgtH/AIjW/wCI1v8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AILR/wBzvP8Aesb/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/zBvk/9lYl//ZWJf/2ViX/9lYl//MG+T/wCC0f8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AIzb/wCM2/8AjNv/AHO8/wB6xv8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AIjW/zBvk/9lYl//ZWJf/2ViX/9lYl//MG+T/wCM2/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Akt//AJLf/wCS3/8Aesb/AHO8/wCC0f8AgtH/AIjW/wCI1v8AiNb/AIjW/wCM2/8AiNb/AIjW/wCI1v8AiNb/AIjW/wCM2/8AiNb/AIjW/wCI1v8AiNb/AIjW/wCI1v8AiNb/AIjW/wCI1v8AiNb/AIjW/wCI1v8AiNb/AIjW/wCI1v8AiNb/AIzb/wCI1v8AiNb/AIjW/wCC0f8AgMv/AHrG/1NQSv9VRSj/VUUo/1VFKP9VRSj/CXG3/wCC0f8AiNb/AIzb/wCI1v8AiNb/AIjW/wCI1v8AiNb/AIjW/wCI1v8AiNb/AIjW/wCI1v8AjNv/AIjW/wCI1v8AiNb/AIjW/wCI1v8AiNb/AIzb/wCI1v8AjNv/AIjW/wCI1v8AjNv/AIzb/wCI1v8AgtH/AILR/wBzvP8Eaq//AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AIDL/wB6xv8qWnD/VUUo/1VFKP9VRSj/VUUo/ypacP8Aesb/AIDL/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/AILR/wCC0f8AgtH/BGqv/wRqr/8Aesb/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wB6xv8Aesb/Klpw/1VFKP9VRSj/VUUo/1VFKP8qWnD/AHrG/wB6xv8Aesb/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wCAy/8AgMv/AIDL/wB6xv8Eaq//A2at/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8qWnD/VUUo/1VFKP9VRSj/Klpw/wBzvP8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wB6xv8Aesb/AHrG/wNmrf8AX6X/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wRqr/8qWnD/VUUo/ypacP8Ac7z/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AHXE/wB1xP8AdcT/AF+l/wBfpf8AdcT/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHXE/wB1xP8AX6X/AHXE/wB1xP8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wBwyv8AcMr/AHDK/wB1xP8AX6X/AUWK/wNmrf8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/AFqz/wBas/8AWrP/A2at/wFFiv8=' },
-  contdown_leg: { w: 74, h: 13, bgra: 'HTNL//cPEP8AAAD/AAAA/wAAAP8AAAD/AAAA//77+/8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wIFBf8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA//77+/8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AgUF/wAAAP8AAAD/CQMC/wAAAP/9BAT/AAAA/wAAAP8AAAD/C/wJ//UE9/8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA//r5+v/++/v/AgUF/wAAAP8AAAD/AAAA/wYHBv8AAAD/AAAA/wAAAP/6+fr/AAAA/wnx8P8eOE7/BRIT/xoYGP8AAAD/9/z4/wAAAP///vv/AAAA/wECBf///vv/9vT+//r69/8AAAD/AAAA/wAAAP8GBgn/CgwC/wECBf8GBQH/+vv//wAAAP8AAAD///77/wAAAP/29P7/AAAA//r69/8AAAD/CQH+//f/Av8B+ff//wcJ/wH59///Bwn/99K9/wAAAP8AAAD/AAAA/wkuQ/8B+ff/AAAA//8HCf8JAf7/BxEN/wAAAP8AAAD/AAAA/wAAAP8BAgX/AAAA///++//29P7/AAAA/wAAAP8AAAD/AAAA/wAAAP8D+/X/9/8C/wAAAP8AAAD/BgYJ/wAAAP8AAAD/CgwC/wECBf8AAAD///77//Du9f8GBgn/AAAA/wAAAP/6+vf/++7t/x44Tv8WGh7/AAAA//j58//9BQv/A/v1/wAAAP8AAAD/AAAA/wAAAP8AAAD/9/8C/wAAAP8AAAD/CQH+/wAAAP8AAAD/+Pj5/wgIB/8AAAD/AAAA/wAAAP8AAAD/AAAA//j4+f//Bwn/Afn3/wAAAP8AAAD/AAAA/wAAAP8AAAD//Pf5//rizf9hkJ3/AAAA/w0LCv/U3OX/vol0/wQcMP8CAgP/BAkH/wAAAP8AAAD/AAAA/wAAAP8ICAf/AAAA//f/Av8JAf7/AAAA/wAAAP/3/wL/Afn3//8HCf8JAf7/AAAA/wAAAP/4+Pn/AAAA/wgIB//3/wL/Afn3/wAAAP8ICAf/CAcN//j58//4+Pn/AAAA/wgIB//3/wL/CQH+/wgHDf/q5uL/Dxwn/wkJBf/5+/j/+Pj5//769//8/P3//Pz9//z8/f/8/P3//Pz9//z8/f/99PX/AwH//wH9/P/48/b//gEA//jz9v/+/P3/+vj5//r4+f/+AQD//Pz9//z8/f/48/b//vz9/wMB//8AAAD/AAAA//z3+f/8+vr//fv7///9/v/+/v3//vLo/wcnN//2+Pv/9v///yYcFf8LKjn/3bei/wAIFP/+/f3//fv7///9/v/+/P3//vz9//4BAP/8/P3//fT1//r4+f/+AQD/+PP2///4+P/+/P3/AwH///jz9v/6+Pn/+vj5//78/f/+/P3/+vj5///4+P/+/P3//vz9//r4+f/29PP/+vj5//78/f/+/P3//gEA/wH9/P/8/P3/AAH9//n3+P8PHCf/BAgH//j4+f/89/n//vz9//78/f/+/P3//vz9//78/f/+/P3//vz9/wAAAP/+/P3//vz9/wAAAP/+/P3/AAAA/wAAAP8AAAD/AAAA//78/f/+/P3//vz9/wAAAP8AAAD//vz9//78/f/+/P3/AAAA//////8AAAD////////7/f8CDBf/472n/xAlMf8E/P7/7/n8/yohGP8LKjn/3rmk//4HEP8B/wH///39/wACAP///////fv7//37+/8BAQL/AAAA//78/f8AAAD/AAAA/wAAAP/+/P3//v79///////////////////////////////////////////////////////////////////////9+/v//fv7//37+/8HCgn/+PL1/w8cJ/8HCgn//Pz9//78/f8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA//7+/f8BAQL/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AQEC//76/P8A/v//AAAA/wAAAP//ChL/6Max/wonNP/+AQH/9fn8/yohGP8LKjn/37qm/wIMF/8AAAD/AP7//wD+//8BAwL/AAAA/wEBAv8AAAD/AAAA/wAAAP/+/v3//////wEBAv//////AAAA/wAAAP8CAgP//////wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA//8CAv/69vX/Dxwn/w0NDP/18vT/AAAA/wAAAP8AAAD/AAAA//7+/f//////AQEC/wAAAP/+/v3//////wEBAv/9+fr/AP7////9/f///f3/AAIA///////++vz///39///9/f8CBAP/AAAA/wAAAP8AAAD//v79////////////AP7//wAAAP8AAAD//f77/wAAAP8ACxT/68ax/ydASv/+/f3/6+fs/ywoH//5Gyr/58Gr/wIMF/8AAAD/AAAA/wD+//8BAwL/AQEC//7+/f///////////wAAAP8AAAD//////wICA///////AAAA/wH8////AgD/AgID/wEBAv//////AAAA/wAAAP//+/3/AP7//wD+//8A/v//AP7//wMAAv8BBAP/AgUE//v39/8dM0v/DxgU//Tv8v/9+fr/AAAA/wMHBv8A+wH/AAD8/wAFA/8A+wH//gP8/wL9BP/9/vn/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wMHBv8AAAD/AAAA/wD7Af/9/vn/AAAA/wAAAP8AAAD/AAAA/wAAAP/9/vv/AAAA/wDr2P85Z37/CgL+/9bX0v/x5+z/7eDU/wn58v8DFy3/AAAA/wAAAP8AAAD/AAAA/wMCA/8AAAT/AAAA/wAA/P/+AwD/AAAA/wAAAP8C/QT/AAAA/wAF//8AAAD/AAAA/wAAAP8A+wH/AAAA/wAAAP8ABf//APsB/wAF//8A+wH/AAD8/wAFA/8A+wH/AAX//wAAAP8ECQf/+fDz/x0zS/8DBwb//fn6/wAAAP8AAAD/AAAA/wAAAP8AAAD/AwID/wAABP8AAPz//f79/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP/9/vv/AAAA/wAAAP8A69j/MVZv/wAAAP/p4N//8PHs//bu7v8A69j/ABUo/wMCBf8AAAD/AAAA/wAAAP8DAgf/AAD8/wAFA/8A+wH/AAD8//3+/f8AAAD/AAAA/wAAAP8AAAD/AAAA/wMCA/8AAAT/AAD8/wAABP8ABf//APsB/wAA/P8ABQP/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP/9+fr/DBMf/wMCBP//////AAAA/wAAAP8AAAD/AAAA/wAAAP/////////9//////8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA//35Bv8B/vr/AO7Z/yNGW//9+fj/7ujo//Dx7P/89/n//efT/wAQJv8A/v///wL//wIBA/8AAAD/AAAA/wIBAP8AAAT/AP79/wAA/v/9/v3/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD//////////f//////AgEA/wD+//8AAP7/AAAA/wADAv8AAAD/AAAA/wD7Af8A/gH/AP4B/wD+Af8AAwD/BQII//z8+f8NFiL/AAMC/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP/9/vv///0E/wEB+/8A+O3/+QQN//Lw7//4+fb//Pf5//rizf8AECb/AAAA/wAAAP8AAwH/AgED/wAAAP8AAAD//////wIBAP8AAAD//f79/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8CAQL/AAAA/wAAAP8AAAD/AP7//wD+A/8A/gH/AAD8/wAA/v8AAP7/AAAC/wD+Af/+/f3/+vcA/xgrTv8ICgT/AAAA/wAAAP8AAAD/AAAA/wAAAP8ABf//AAAA/wAAAP8AAAD/AAAA/wAAAP8A+wH/AAX//wD7Af8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD//f75/wAAAP/96dP/AAAA//z8/P8EBAT/Axct/wAAAP8AAAD/AAAA/wMCB/8AAAD/AAAA/wAAAP8AAAD/AAAA/wAF//8A+wH/AAAA/wAF//8AAAD/AAAA/wD7Af8ABf//AAAA/wAAAP8A+wH/AAAA/wAF//8AAAD/AAAA/wAAAP8AAAD/AAAA/wUCCP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP/49/L/GixE//7/Cv8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wgKBP8AAAD/AAAA/wAAAP8AAAD/AAAA//r38v8=' },
-};
-
-
-function readDialogText(raw, imgW, imgH) {
-  // ── Column hash helper ──
-  // raw is BGRA bytes from alt1.getRegion; dark = r+g+b < 120
-  function colHash(x, h) {
-    let bits = 0;
-    for (let row = 0; row < h; row++) {
-      const i = (row * imgW + x) * 4;
-      if (raw.charCodeAt(i+2) + raw.charCodeAt(i+1) + raw.charCodeAt(i+0) < 120)
-        bits |= (1 << row);
-    }
-    return bits;
-  }
-
-  // ── Find dark clusters in a row band ──
-  // Returns [{start, end, hashes}] for groups of dark columns (gap < minGap = empty)
-  function getClusters(y1, y2, minGap) {
-    const h = y2 - y1 + 1;
-    const clusters = [];
-    let inDark = false, cStart = 0, lastDark = 0, gap = 0;
-    for (let x = 0; x <= imgW + minGap; x++) {
-      let hasDark = false;
-      if (x < imgW) {
-        const hash = colHash(x, imgH); // use full strip height for col detection
-        // check only within our band
-        let bandBits = 0;
-        for (let row = y1; row <= y2; row++) {
-          const i = (row * imgW + x) * 4;
-          if (raw.charCodeAt(i+2) + raw.charCodeAt(i+1) + raw.charCodeAt(i+0) < 120)
-            bandBits |= 1;
-        }
-        hasDark = bandBits > 0;
-      }
-      if (hasDark) {
-        if (!inDark) { cStart = x; inDark = true; }
-        lastDark = x; gap = 0;
-      } else {
-        if (inDark) gap++;
-        if (gap >= minGap && inDark) {
-          // collect hashes for this cluster
-          const hashes = [];
-          for (let cx = cStart; cx <= lastDark; cx++) {
-            let bits = 0;
-            for (let row = y1; row <= y2; row++) {
-              const i = (row * imgW + cx) * 4;
-              if (raw.charCodeAt(i+2) + raw.charCodeAt(i+1) + raw.charCodeAt(i+0) < 120)
-                bits |= (1 << (row - y1));
-            }
-            hashes.push(bits);
-          }
-          clusters.push({ start: cStart, end: lastDark, hashes });
-          inDark = false; gap = 0;
-        }
-      }
-    }
-    return clusters;
-  }
-
-  // ── Find text bands ──
-  const textRows = [];
-  for (let y = 0; y < imgH; y++) {
-    for (let x = 50; x < Math.min(450, imgW); x++) {
-      const i = (y * imgW + x) * 4;
-      if (raw.charCodeAt(i+2) + raw.charCodeAt(i+1) + raw.charCodeAt(i+0) < 120) {
-        textRows.push(y); break;
-      }
-    }
-  }
-  if (!textRows.length) return null;
-
-  const bands = [];
-  let bs = textRows[0], bl = textRows[0];
-  for (let i = 1; i < textRows.length; i++) {
-    if (textRows[i] - bl > 4) { bands.push({y1:bs, y2:bl}); bs = textRows[i]; }
-    bl = textRows[i];
-  }
-  bands.push({y1:bs, y2:bl});
-  console.log('[StarScout] bands:', JSON.stringify(bands));
-
-  if (bands.length < 2) return null;
-
-  // ── Digit templates (column hashes, extracted from live RS dialog pixels) ──
-  // These were measured from a real dialog at this client's scale/DPI.
-  const DIGIT = {
-    0: [24,260,292,260,192],
-    1: [4,4,504],
-    2: [112,32,292,292,288,48],
-    5: [240,4,528,530,2,192],
-    6: [248,4,528,530,2,192],
-    8: [508,0,0,508,0,4,4,4,504],
-   18: [4,4,504,0,0,508,0,0,508,0,4,4,4,504],
-   20: [112,32,292,292,288,48,0,0,24,260,292,260,192],
-   26: [508,0,4,4,4,504,0,0,112,32,292,292,288,48],
-   28: [508,0,4,4,504,0,4,4,504,0,0,508,0,0,508,0,4,4,4,504],
-  };
-
-  // ── Template matching: Hamming distance on column hash sequences ──
-  function matchTemplate(hashes, tmpl) {
-    // strip leading/trailing zeros from both
-    while (hashes.length && !hashes[0])    hashes = hashes.slice(1);
-    while (hashes.length && !hashes[hashes.length-1]) hashes = hashes.slice(0,-1);
-    while (tmpl.length  && !tmpl[0])       tmpl  = tmpl.slice(1);
-    while (tmpl.length  && !tmpl[tmpl.length-1])   tmpl  = tmpl.slice(0,-1);
-    const len = Math.max(hashes.length, tmpl.length);
-    let score = 0;
-    for (let i = 0; i < len; i++) {
-      const h = hashes[i] || 0, t = tmpl[i] || 0;
-      let x = h ^ t;
-      while (x) { score += x & 1; x >>= 1; }
-    }
-    return score;
-  }
-
-  function matchDigit(hashes) {
-    let best = null, bestScore = Infinity;
-    for (const [d, tmpl] of Object.entries(DIGIT)) {
-      const s = matchTemplate([...hashes], [...tmpl]);
-      if (s < bestScore) { bestScore = s; best = parseInt(d); }
-    }
-    return bestScore < 60 ? best : null;
-  }
-
-  // ── Extract SIZE from last meaningful band ──
-  // Line3 = "The star looks to be size X." — last cluster is "X."
-  let size = null;
-  {
-    const line3 = bands[bands.length - 1]; // last text band
-    const clusters = getClusters(line3.y1, line3.y2, 2);
-    console.log('[StarScout] line3 clusters:', clusters.length, clusters.map(c=>c.start+'..'+c.end));
-    if (clusters.length >= 2) {
-      // Last cluster may be "." (single col, sparse). Second-to-last is digit.
-      let digitCluster = clusters[clusters.length - 1];
-      // If last cluster is very sparse (likely period), use second-to-last
-      const lastDark = digitCluster.hashes.filter(h => h > 0).length;
-      if (lastDark <= 2 && clusters.length >= 2) {
-        digitCluster = clusters[clusters.length - 2];
-      }
-      size = matchDigit(digitCluster.hashes);
-      console.log('[StarScout] size cluster x=' + digitCluster.start + '..' + digitCluster.end + ' -> ' + size);
-    }
-  }
-
-  // ── Extract TIME from line2 ──
-  // Line2 = "...in the next X to Y minutes." — find clusters before "to"
-  let time = null;
-  {
-    const line2 = bands.length >= 3 ? bands[bands.length - 2] : bands[0];
-    const clusters = getClusters(line2.y1, line2.y2, 2);
-    console.log('[StarScout] line2 clusters:', clusters.length, clusters.map(c=>c.start+'..'+c.end));
-
-    // "to" template: look for the cluster containing both "t" and "o"
-    // "t" has a crossbar; "o" is an oval. Their combined width is ~13px.
-    // Heuristic: find a cluster of width 12-15 preceded by the time number.
-    // The time number cluster(s) are immediately before "to".
-    //
-    // Strategy: scan clusters from right:
-    // Skip "minutes." cluster(s) at the end.
-    // The pattern from right: minutes(large) . (period) Y (end-time) "to" X (start-time)
-    // But "to" may merge with adjacent clusters.
-    // Simpler: find the cluster(s) that match our known number templates.
-    
-    // Try matching each cluster and nearby pair against number templates
-    let bestMatch = null, bestScore = Infinity, bestIdx = -1;
-    for (let i = 0; i < clusters.length; i++) {
-      // try single cluster
-      const s1 = matchDigit(clusters[i].hashes);
-      if (s1 !== null) {
-        const sc = matchTemplate([...clusters[i].hashes], [...DIGIT[s1]]);
-        if (sc < bestScore) {
-          bestScore = sc; bestMatch = s1; bestIdx = i;
-        }
-      }
-      // try merging with next cluster (for 2-digit numbers)
-      if (i + 1 < clusters.length) {
-        const merged = [...clusters[i].hashes, ...Array(clusters[i+1].start - clusters[i].end - 1).fill(0), ...clusters[i+1].hashes];
-        for (const [d, tmpl] of Object.entries(DIGIT)) {
-          if (parseInt(d) >= 10) { // only multi-digit templates
-            const sc = matchTemplate([...merged], [...tmpl]);
-            if (sc < bestScore) {
-              bestScore = sc; bestMatch = parseInt(d); bestIdx = i;
-            }
-          }
-        }
-      }
-    }
-    if (bestMatch !== null) {
-      time = bestMatch;
-      console.log('[StarScout] time match: ' + time + ' score=' + bestScore);
-    }
-  }
-
-  if (size === null && time === null) return null;
-
-  // Build a synthetic text string that parseTelescopeText can parse
-  const parts = [];
-  if (time !== null) parts.push('in the next ' + time + ' to ' + (time + 2) + ' minutes');
-  if (size !== null) parts.push('to be size ' + size);
-  const synthetic = parts.join(' ');
-  console.log('[StarScout] synthetic:', JSON.stringify(synthetic));
-  return synthetic;
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════
-//  REGION MAP + PARSER  (unchanged from original)
-// ═══════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  REGION MAPS
+// ════════════════════════════════════════════════════════
 const REGION_MAP = {
   'anachronia':'Ana','asgarnia':'Asg','ashdale':'Ash',
   'crandor':'C/K','karamja':'C/K','crandor/karamja':'C/K',
   'daemonheim':'Daem','kharidian desert':'Des','desert':'Des',
-  'fremennik':'F/L','lunar isle':'F/L','fremennik/lunar isle':'F/L','lunar':'F/L',
+  'fremennik':'F/L','lunar isle':'F/L','fremennik/lunar isle':'F/L',
   'feldip hills':'Feld','feldip':'Feld',
   'lost grove':'Grove','the lost grove':'Grove',
-  'kandarin':'Kand',
-  'morytania':'M/M',"mos le'harmless":'M/M',"morytania/mos le'harmless":'M/M','mos le harmless':'M/M',
+  'kandarin':'Kand','morytania':'M/M',"mos le'harmless":'M/M',
   'menaphos':'Mena','misthalin':'Mist',
   'piscatoris':'PGT','gnome stronghold':'PGT','tirannwn':'PGT',
-  'piscatoris/gnome stronghold/tirannwn':'PGT',
   'wendlewick':'Wend','wilderness':'Wild',
 };
+
+const ABBREV_FULL = {
+  'Ana':'Anachronia','Asg':'Asgarnia','Ash':'Ashdale',
+  'C/K':'Crandor/Karamja','Daem':'Daemonheim','Des':'Kharidian Desert',
+  'F/L':'Fremennik/Lunar Isle','Feld':'Feldip Hills','Grove':'The Lost Grove',
+  'Kand':'Kandarin','M/M':"Morytania/Mos Le'Harmless",'Mena':'Menaphos',
+  'Mist':'Misthalin','PGT':'Piscatoris/Gnome/Tirannwn','Wend':'Wendlewick','Wild':'Wilderness',
+};
+
 function lookupRegion(raw) {
   const lower = raw.toLowerCase().trim();
   if (REGION_MAP[lower]) return REGION_MAP[lower];
-  for (const [key, abbr] of Object.entries(REGION_MAP)) {
-    if (lower.includes(key) || key.includes(lower)) return abbr;
-  }
+  for (const [k,v] of Object.entries(REGION_MAP))
+    if (lower.includes(k)||k.includes(lower)) return v;
   return null;
 }
-function parseTelescopeText(text) {
-  const result = { region: null, size: null, time: null };
-  if (!text) return result;
-  const t = text.replace(/\n/g,' ').replace(/\s+/g,' ');
+
+// ════════════════════════════════════════════════════════
+//  PARSE TELESCOPE TEXT  (mirrors starfind-scope's utils.ts logic)
+// ════════════════════════════════════════════════════════
+function cleanOCRText(t) {
+  t = t.replace(/\n/g,' ').replace(/\s+/g,' ');
+  t = t.replace('itwill','it will');
+  t = t.replace('mines','minutes');
+  t = t.replace('t0','to');
+  t = t.replace(/\. minutes/,' minutes');
+  t = t.replace(/\. to/,' to');
+  t = t.replace(/\. next/,' next');
+  t = t.replace(/\./g,'');
+  t = t.replace(/[S]([1-9])/g,'5$1');
+  t = t.replace('3d','34');
+  t = t.replace('B minutes','8 minutes');
+  t = t.replace(/next(\d+)/g,'next $1');
+  t = t.replace(/(\d)\s*to\s*(\d)/g,'$1 to $2');
+  t = t.replace(/(\d)\s*minutes/g,'$1 minutes');
+  t = t.replace(/(\d+)\s+(\d+)/g,'$1 to $2');
+  // Fix inverted range
+  const rng = t.match(/(\d+)\s+to\s+(\d+)/);
+  if (rng) {
+    const a=parseInt(rng[1]),b=parseInt(rng[2]);
+    if (a>b) t=t.replace(rng[0],`${Math.floor(a/10)} to ${b}`);
+  }
+  return t;
+}
+
+function parseTelescopeText(rawText) {
+  const result = {region:null,size:null,time:null};
+  if (!rawText) return result;
+  const t = cleanOCRText(rawText);
+
+  // Region
   const regionPattern = new RegExp(
     Object.keys(REGION_MAP).sort((a,b)=>b.length-a.length)
-      .map(k=>k.replace(/[/()']/g,s=>'\\'+s)).join('|'), 'i');
+      .map(k=>k.replace(/[/()']/g,s=>'\\'+s)).join('|'),'i');
   const rm = t.match(regionPattern);
   if (rm) result.region = lookupRegion(rm[0]);
-  const sm = t.match(/\bto be size (\d{1,2})\b/i) || t.match(/\bsize[:\s]+(\d{1,2})\b/i);
-  if (sm) result.size = parseInt(sm[1]);
-  const rangem = t.match(/(\d{1,3})\s+to\s+(\d{1,3})\s+minutes?/i);
-  if (rangem) { result.time = parseInt(rangem[1]); }
-  else { const sm2 = t.match(/(\d{1,3})\s*minutes?/i); if (sm2) result.time = parseInt(sm2[1]); }
+
+  // Size — starfind-scope approach: look for 'size' then grab number
+  const sizeIdx = t.toLowerCase().indexOf('be');
+  if (sizeIdx !== -1) {
+    const sub = t.substring(sizeIdx+2);
+    if (/\s*size\s*/i.test(sub.substring(0,6))) {
+      const n = sub.replace(/\D/g,'').substring(0,2);
+      if (n) result.size = parseInt(n.trim());
+    }
+  }
+  // Fallback size patterns
+  if (!result.size) {
+    const sm = t.match(/\bto be size (\d{1,2})\b/i)||t.match(/\bsize[:\s]+(\d{1,2})\b/i);
+    if (sm) result.size = parseInt(sm[1]);
+  }
+
+  // Time — starfind-scope getTime logic
+  const nextM = t.match(/(?:in the )?next\s+(.*?)\s+to/);
+  if (nextM) {
+    const tt = nextM[1];
+    let mins = 0;
+    const hm = tt.match(/(\d+)\s+(?:hour|hours)/);
+    if (hm) mins += parseInt(hm[1])*60;
+    const mm = tt.match(/(\d+)\s+minutes/);
+    if (mm) mins += parseInt(mm[1]);
+    if (mins===0) { const jm=tt.match(/(\d+)/); if(jm) mins=parseInt(jm[1]); }
+    result.time = mins;
+  } else {
+    // Fallback range
+    const rangeM = t.match(/(\d{1,3})\s+to\s+(\d{1,3})\s*minutes?/i);
+    if (rangeM) result.time = parseInt(rangeM[1]);
+    else { const sm=t.match(/(\d{1,3})\s*minutes?/i); if(sm) result.time=parseInt(sm[1]); }
+  }
+
   return result;
 }
 
+// ════════════════════════════════════════════════════════
+//  EMBEDDED 12-PT FONT  (for custom pixel OCR fallback)
+// ════════════════════════════════════════════════════════
+const FONT_12PT = {"basey":9,"spacewidth":3,"height":13,"chars":[{"c":"a","w":7,"p":[[2,3],[3,3],[4,3],[4,4],[5,4],[5,5],[1,6],[2,6],[3,6],[4,6],[5,6],[1,7],[2,7],[4,7],[5,7],[1,8],[2,8],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"b","w":8,"p":[[1,0],[1,1],[1,2],[1,3],[2,3],[3,3],[4,3],[5,3],[1,4],[2,4],[4,4],[5,4],[6,4],[1,5],[2,5],[6,5],[1,6],[6,6],[1,7],[2,7],[6,7],[1,8],[2,8],[5,8],[6,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"c","w":6,"p":[[2,3],[3,3],[4,3],[1,4],[2,4],[4,4],[5,4],[1,5],[1,6],[1,7],[2,7],[1,8],[2,8],[2,9],[3,9],[4,9]],"s":false},{"c":"d","w":8,"p":[[6,0],[6,1],[6,2],[2,3],[3,3],[4,3],[5,3],[6,3],[1,4],[2,4],[4,4],[5,4],[6,4],[1,5],[6,5],[1,6],[6,6],[1,7],[2,7],[6,7],[1,8],[2,8],[5,8],[6,8],[2,9],[3,9],[4,9],[5,9],[6,9]],"s":false},{"c":"e","w":7,"p":[[2,3],[3,3],[4,3],[1,4],[2,4],[4,4],[5,4],[1,5],[5,5],[1,6],[2,6],[3,6],[4,6],[5,6],[1,7],[2,7],[1,8],[2,8],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"f","w":4,"p":[[1,0],[2,0],[3,0],[1,1],[1,2],[0,3],[1,3],[2,3],[3,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9]],"s":false},{"c":"g","w":8,"p":[[2,3],[3,3],[4,3],[5,3],[6,3],[1,4],[2,4],[4,4],[5,4],[6,4],[1,5],[6,5],[1,6],[6,6],[1,7],[2,7],[6,7],[1,8],[2,8],[5,8],[6,8],[2,9],[3,9],[4,9],[5,9],[6,9],[5,10],[6,10],[5,11],[6,11],[1,12],[2,12],[3,12],[4,12],[5,12]],"s":false},{"c":"h","w":7,"p":[[1,0],[1,1],[1,2],[1,3],[2,3],[3,3],[4,3],[1,4],[2,4],[4,4],[5,4],[1,5],[2,5],[5,5],[1,6],[5,6],[1,7],[5,7],[1,8],[5,8],[1,9],[5,9]],"s":false},{"c":"i","w":3,"p":[[1,0],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9]],"s":true},{"c":"j","w":3,"p":[[1,0],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9],[1,10],[1,11],[0,12],[1,12]],"s":false},{"c":"k","w":6,"p":[[1,0],[1,1],[1,2],[1,3],[4,3],[5,3],[1,4],[3,4],[4,4],[1,5],[2,5],[3,5],[1,6],[2,6],[3,6],[1,7],[2,7],[3,7],[4,7],[1,8],[4,8],[1,9],[4,9],[5,9]],"s":false},{"c":"l","w":3,"p":[[1,0],[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9]],"s":false},{"c":"m","w":11,"p":[[1,3],[2,3],[3,3],[4,3],[6,3],[7,3],[8,3],[1,4],[2,4],[4,4],[5,4],[6,4],[8,4],[9,4],[1,5],[2,5],[5,5],[6,5],[9,5],[1,6],[5,6],[9,6],[1,7],[5,7],[9,7],[1,8],[5,8],[9,8],[1,9],[5,9],[9,9]],"s":false},{"c":"n","w":7,"p":[[1,3],[2,3],[3,3],[4,3],[1,4],[2,4],[4,4],[5,4],[1,5],[2,5],[5,5],[1,6],[5,6],[1,7],[5,7],[1,8],[5,8],[1,9],[5,9]],"s":false},{"c":"o","w":8,"p":[[2,3],[3,3],[4,3],[5,3],[1,4],[2,4],[4,4],[5,4],[6,4],[1,5],[6,5],[1,6],[6,6],[1,7],[2,7],[6,7],[1,8],[2,8],[5,8],[6,8],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"p","w":8,"p":[[1,3],[2,3],[3,3],[4,3],[5,3],[1,4],[2,4],[4,4],[5,4],[6,4],[1,5],[2,5],[6,5],[1,6],[6,6],[1,7],[2,7],[6,7],[1,8],[2,8],[5,8],[6,8],[1,9],[2,9],[3,9],[4,9],[5,9],[1,10],[1,11],[1,12]],"s":false},{"c":"q","w":8,"p":[[2,3],[3,3],[4,3],[5,3],[6,3],[1,4],[2,4],[4,4],[5,4],[6,4],[1,5],[6,5],[1,6],[6,6],[1,7],[2,7],[6,7],[1,8],[2,8],[5,8],[6,8],[2,9],[3,9],[4,9],[5,9],[6,9],[5,10],[6,10],[6,11],[6,12]],"s":false},{"c":"r","w":5,"p":[[1,3],[2,3],[3,3],[4,3],[1,4],[2,4],[1,5],[2,5],[1,6],[1,7],[1,8],[1,9]],"s":false},{"c":"s","w":7,"p":[[1,3],[2,3],[3,3],[4,3],[5,3],[1,4],[4,4],[5,4],[1,5],[2,5],[2,6],[3,6],[4,6],[4,7],[5,7],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"t","w":4,"p":[[1,1],[1,2],[0,3],[1,3],[2,3],[3,3],[1,4],[1,5],[1,6],[1,7],[1,8],[2,8],[1,9],[2,9],[3,9]],"s":false},{"c":"u","w":7,"p":[[1,3],[5,3],[1,4],[5,4],[1,5],[5,5],[1,6],[5,6],[1,7],[5,7],[1,8],[2,8],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"v","w":6,"p":[[0,3],[5,3],[0,4],[1,4],[4,4],[5,4],[1,5],[4,5],[5,5],[1,6],[2,6],[4,6],[1,7],[2,7],[3,7],[4,7],[2,8],[3,8],[4,8],[2,9],[3,9]],"s":false},{"c":"w","w":9,"p":[[0,3],[1,3],[4,3],[5,3],[8,3],[0,4],[1,4],[4,4],[5,4],[8,4],[1,5],[3,5],[4,5],[5,5],[7,5],[8,5],[1,6],[3,6],[5,6],[6,6],[7,6],[8,6],[1,7],[2,7],[3,7],[5,7],[6,7],[7,7],[8,7],[1,8],[2,8],[3,8],[6,8],[7,8],[2,9],[3,9],[6,9],[7,9]],"s":false},{"c":"x","w":6,"p":[[0,3],[1,3],[4,3],[5,3],[1,4],[2,4],[4,4],[2,5],[3,5],[4,5],[2,6],[3,6],[2,7],[3,7],[4,7],[1,8],[2,8],[3,8],[4,8],[0,9],[1,9],[4,9],[5,9]],"s":false},{"c":"y","w":6,"p":[[0,3],[1,3],[5,3],[0,4],[1,4],[4,4],[5,4],[1,5],[4,5],[5,5],[1,6],[2,6],[4,6],[1,7],[2,7],[3,7],[4,7],[2,8],[3,8],[4,8],[2,9],[3,9],[2,10],[3,10],[2,11],[0,12],[1,12],[2,12]],"s":false},{"c":"z","w":6,"p":[[1,3],[2,3],[3,3],[4,3],[5,3],[3,4],[4,4],[5,4],[3,5],[4,5],[3,6],[2,7],[1,8],[2,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"A","w":8,"p":[[3,1],[4,1],[3,2],[4,2],[2,3],[3,3],[4,3],[5,3],[2,4],[4,4],[5,4],[1,5],[2,5],[5,5],[1,6],[2,6],[3,6],[4,6],[5,6],[6,6],[1,7],[3,7],[4,7],[5,7],[6,7],[0,8],[1,8],[6,8],[0,9],[1,9],[6,9],[7,9]],"s":false},{"c":"B","w":8,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[1,2],[4,2],[5,2],[6,2],[1,3],[6,3],[1,4],[5,4],[6,4],[1,5],[2,5],[3,5],[4,5],[5,5],[1,6],[4,6],[5,6],[6,6],[1,7],[6,7],[1,8],[5,8],[6,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"C","w":8,"p":[[3,1],[4,1],[5,1],[6,1],[2,2],[3,2],[5,2],[6,2],[1,3],[2,3],[1,4],[1,5],[1,6],[2,6],[1,7],[2,7],[1,8],[2,8],[3,8],[2,9],[3,9],[4,9],[5,9],[6,9]],"s":false},{"c":"D","w":9,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[1,2],[4,2],[5,2],[6,2],[1,3],[6,3],[7,3],[1,4],[7,4],[1,5],[7,5],[1,6],[7,6],[1,7],[6,7],[7,7],[1,8],[5,8],[6,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"E","w":6,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[1,2],[1,3],[1,4],[1,5],[2,5],[3,5],[4,5],[5,5],[1,6],[1,7],[1,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"F","w":6,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[1,2],[1,3],[1,4],[1,5],[2,5],[3,5],[4,5],[5,5],[1,6],[1,7],[1,8],[1,9]],"s":false},{"c":"G","w":9,"p":[[3,1],[4,1],[5,1],[6,1],[7,1],[2,2],[3,2],[6,2],[7,2],[1,3],[2,3],[1,4],[1,5],[5,5],[6,5],[7,5],[1,6],[2,6],[6,6],[7,6],[1,7],[2,7],[7,7],[2,8],[3,8],[7,8],[2,9],[3,9],[4,9],[5,9],[6,9],[7,9]],"s":false},{"c":"H","w":8,"p":[[1,1],[6,1],[1,2],[6,2],[1,3],[6,3],[1,4],[6,4],[1,5],[2,5],[3,5],[4,5],[5,5],[6,5],[1,6],[5,6],[6,6],[1,7],[6,7],[1,8],[6,8],[1,9],[6,9]],"s":false},{"c":"I","w":4,"p":[[1,1],[2,1],[3,1],[2,2],[2,3],[2,4],[2,5],[2,6],[2,7],[2,8],[1,9],[2,9],[3,9]],"s":false},{"c":"J","w":3,"p":[[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9],[1,10],[0,11],[1,11],[0,12]],"s":false},{"c":"K","w":7,"p":[[1,1],[5,1],[6,1],[1,2],[4,2],[5,2],[1,3],[3,3],[4,3],[1,4],[2,4],[3,4],[1,5],[2,5],[3,5],[4,5],[1,6],[2,6],[3,6],[4,6],[1,7],[4,7],[5,7],[1,8],[5,8],[1,9],[5,9],[6,9]],"s":false},{"c":"L","w":6,"p":[[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[2,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"M","w":10,"p":[[1,1],[2,1],[7,1],[8,1],[1,2],[2,2],[7,2],[8,2],[1,3],[2,3],[3,3],[6,3],[7,3],[8,3],[1,4],[2,4],[3,4],[6,4],[7,4],[8,4],[1,5],[3,5],[6,5],[7,5],[8,5],[1,6],[3,6],[4,6],[5,6],[6,6],[7,6],[8,6],[1,7],[3,7],[4,7],[5,7],[8,7],[1,8],[4,8],[5,8],[8,8],[1,9],[4,9],[5,9],[8,9]],"s":false},{"c":"N","w":9,"p":[[1,1],[2,1],[7,1],[1,2],[2,2],[3,2],[7,2],[1,3],[2,3],[3,3],[7,3],[1,4],[3,4],[4,4],[7,4],[1,5],[4,5],[7,5],[1,6],[4,6],[5,6],[7,6],[1,7],[5,7],[6,7],[7,7],[1,8],[5,8],[6,8],[7,8],[1,9],[6,9],[7,9]],"s":false},{"c":"O","w":10,"p":[[2,1],[3,1],[4,1],[5,1],[6,1],[1,2],[2,2],[3,2],[5,2],[6,2],[7,2],[1,3],[2,3],[7,3],[8,3],[1,4],[8,4],[1,5],[8,5],[1,6],[2,6],[8,6],[1,7],[2,7],[7,7],[8,7],[1,8],[2,8],[3,8],[6,8],[7,8],[2,9],[3,9],[4,9],[5,9],[6,9]],"s":false},{"c":"P","w":7,"p":[[1,1],[2,1],[3,1],[4,1],[1,2],[4,2],[5,2],[1,3],[5,3],[1,4],[4,4],[5,4],[1,5],[2,5],[3,5],[4,5],[1,6],[1,7],[1,8],[1,9]],"s":false},{"c":"Q","w":10,"p":[[2,1],[3,1],[4,1],[5,1],[6,1],[1,2],[2,2],[3,2],[5,2],[6,2],[7,2],[1,3],[2,3],[7,3],[8,3],[1,4],[8,4],[1,5],[8,5],[1,6],[2,6],[8,6],[1,7],[2,7],[7,7],[8,7],[1,8],[2,8],[3,8],[6,8],[7,8],[2,9],[3,9],[4,9],[5,9],[6,9],[5,10],[6,10],[7,10],[6,11],[7,11]],"s":false},{"c":"R","w":7,"p":[[1,1],[2,1],[3,1],[4,1],[1,2],[4,2],[5,2],[1,3],[5,3],[1,4],[4,4],[5,4],[1,5],[2,5],[3,5],[4,5],[1,6],[3,6],[4,6],[1,7],[4,7],[5,7],[1,8],[4,8],[5,8],[1,9],[5,9],[6,9]],"s":false},{"c":"S","w":7,"p":[[2,1],[3,1],[4,1],[5,1],[1,2],[2,2],[4,2],[5,2],[1,3],[2,3],[1,4],[2,4],[2,5],[3,5],[4,5],[4,6],[5,6],[5,7],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9]],"s":false},{"c":"T","w":8,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[3,2],[4,2],[4,3],[4,4],[4,5],[4,6],[4,7],[4,8],[4,9]],"s":false},{"c":"U","w":9,"p":[[1,1],[7,1],[1,2],[7,2],[1,3],[7,3],[1,4],[7,4],[1,5],[7,5],[1,6],[7,6],[1,7],[2,7],[7,7],[1,8],[2,8],[6,8],[7,8],[2,9],[3,9],[4,9],[5,9],[6,9]],"s":false},{"c":"V","w":7,"p":[[0,1],[6,1],[0,2],[1,2],[5,2],[6,2],[1,3],[5,3],[6,3],[1,4],[2,4],[5,4],[1,5],[2,5],[4,5],[5,5],[2,6],[4,6],[5,6],[2,7],[3,7],[4,7],[2,8],[3,8],[4,8],[3,9],[4,9]],"s":false},{"c":"W","w":11,"p":[[0,1],[1,1],[5,1],[10,1],[0,2],[1,2],[4,2],[5,2],[6,2],[9,2],[10,2],[1,3],[4,3],[5,3],[6,3],[9,3],[10,3],[1,4],[2,4],[4,4],[6,4],[7,4],[9,4],[10,4],[1,5],[2,5],[4,5],[6,5],[7,5],[9,5],[1,6],[2,6],[3,6],[4,6],[6,6],[7,6],[8,6],[9,6],[2,7],[3,7],[4,7],[7,7],[8,7],[9,7],[2,8],[3,8],[7,8],[8,8],[2,9],[3,9],[7,9],[8,9]],"s":false},{"c":"X","w":7,"p":[[0,1],[1,1],[5,1],[6,1],[1,2],[2,2],[5,2],[2,3],[4,3],[2,4],[3,4],[4,4],[3,5],[4,5],[2,6],[3,6],[4,6],[1,7],[2,7],[4,7],[5,7],[1,8],[5,8],[0,9],[1,9],[5,9],[6,9]],"s":false},{"c":"Y","w":7,"p":[[0,1],[1,1],[5,1],[6,1],[1,2],[5,2],[1,3],[2,3],[4,3],[5,3],[2,4],[4,4],[2,5],[3,5],[4,5],[3,6],[3,7],[3,8],[3,9]],"s":false},{"c":"Z","w":8,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[5,2],[6,2],[4,3],[5,3],[4,4],[5,4],[3,5],[4,5],[3,6],[2,7],[3,7],[1,8],[2,8],[1,9],[2,9],[3,9],[4,9],[5,9],[6,9]],"s":false},{"c":"0","w":7,"p":[[2,1],[3,1],[4,1],[1,2],[2,2],[4,2],[5,2],[1,3],[2,3],[4,3],[5,3],[1,4],[5,4],[1,5],[5,5],[1,6],[5,6],[1,7],[2,7],[4,7],[5,7],[1,8],[2,8],[4,8],[5,8],[2,9],[3,9],[4,9]],"s":false},{"c":"1","w":7,"p":[[2,1],[3,1],[1,2],[2,2],[3,2],[1,3],[2,3],[3,3],[3,4],[3,5],[3,6],[3,7],[3,8],[3,9]],"s":false},{"c":"2","w":7,"p":[[2,1],[3,1],[4,1],[1,2],[2,2],[4,2],[5,2],[5,3],[4,4],[5,4],[4,5],[5,5],[3,6],[4,6],[2,7],[3,7],[1,8],[2,8],[1,9],[2,9],[3,9],[4,9],[5,9]],"s":false},{"c":"3","w":7,"p":[[1,1],[2,1],[3,1],[4,1],[1,2],[4,2],[5,2],[5,3],[4,4],[5,4],[2,5],[3,5],[4,5],[4,6],[5,6],[5,7],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9]],"s":false},{"c":"4","w":7,"p":[[4,1],[5,1],[4,2],[5,2],[3,3],[4,3],[5,3],[2,4],[3,4],[4,4],[5,4],[2,5],[5,5],[1,6],[2,6],[5,6],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7],[2,8],[3,8],[4,8],[5,8],[6,8],[5,9]],"s":false},{"c":"5","w":7,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[1,2],[2,2],[1,3],[2,3],[1,4],[2,4],[3,4],[4,4],[3,5],[4,5],[5,5],[5,6],[5,7],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9]],"s":false},{"c":"6","w":7,"p":[[2,1],[3,1],[4,1],[1,2],[2,2],[1,3],[2,3],[1,4],[2,4],[3,4],[4,4],[1,5],[2,5],[4,5],[5,5],[1,6],[2,6],[5,6],[1,7],[2,7],[5,7],[1,8],[2,8],[4,8],[5,8],[2,9],[3,9],[4,9]],"s":false},{"c":"7","w":7,"p":[[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[5,2],[6,2],[5,3],[6,3],[4,4],[5,4],[4,5],[5,5],[4,6],[3,7],[4,7],[3,8],[2,9],[3,9]],"s":false},{"c":"8","w":7,"p":[[1,1],[2,1],[3,1],[4,1],[1,2],[4,2],[5,2],[1,3],[2,3],[5,3],[1,4],[2,4],[3,4],[4,4],[5,4],[2,5],[3,5],[4,5],[1,6],[2,6],[4,6],[5,6],[1,7],[5,7],[1,8],[2,8],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9]],"s":false},{"c":"9","w":7,"p":[[2,1],[3,1],[4,1],[1,2],[2,2],[4,2],[5,2],[1,3],[5,3],[1,4],[2,4],[4,4],[5,4],[1,5],[2,5],[3,5],[4,5],[5,5],[4,6],[5,6],[4,7],[5,7],[4,8],[5,8],[1,9],[2,9],[3,9],[4,9]],"s":false},{"c":"/","w":5,"p":[[3,0],[4,0],[3,1],[3,2],[2,3],[3,3],[2,4],[3,4],[2,5],[2,6],[1,7],[2,7],[1,8],[2,8],[1,9],[1,10],[0,11],[1,11]],"s":false},{"c":"-","w":4,"p":[[1,6],[2,6],[3,6]],"s":true},{"c":".","w":3,"p":[[1,8],[1,9],[2,9]],"s":true},{"c":",","w":3,"p":[[1,9],[0,10],[1,10],[0,11],[1,11]],"s":true},{"c":"'","w":4,"p":[[1,1],[2,1],[1,2],[2,2],[1,3],[2,3]],"s":true}]};
 
-
-//
-//  The RS dialog box has a distinctive gold/brown top frame strip.
-//  We scan the bottom half of the RS window for a horizontal run of
-//  that color ≥400px wide, which reliably identifies the dialog top edge
-//  regardless of UI theme or client scaling.
-//
-//  Anchor color (BGRA from getRegion): B≈38, G≈61, R≈77  →  RGB(77,61,38)
-//  This is the boxtl row-30 color per Skillbert's original dialog source.
-// ═══════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════
-//  MAIN SCAN
-// ═══════════════════════════════════════════════════════════════════════
-function scanScreen() {
-  if (typeof alt1 === 'undefined') { simulateScan(); return; }
-
-  scanArea.className = 'scan-area scanning';
-  scanText.textContent = 'Locating dialog…';
-  setStatus('Scanning…');
-  scanBtn.disabled = true;
-
-  setTimeout(() => {
-    try {
-      if (!alt1.rsLinked)        { diagFail('RuneScape window not detected.'); return; }
-      if (!alt1.permissionPixel) { diagFail('Missing pixel permission.\nRight-click app spanner → enable "View screen", then reload.'); return; }
-
-      const rsW = alt1.rsWidth, rsH = alt1.rsHeight;
-      if (rsW <= 0 || rsH <= 0) { diagFail('RS window has zero size — is it minimised?'); return; }
-
-      // Only capture bottom half — dialog always appears there
-      const cropY = Math.floor(rsH * 0.5);
-      const cropH = rsH - cropY;
-      const b64 = alt1.getRegion(0, cropY, rsW, cropH);
-      if (!b64 || !b64.length) {
-        diagFail('getRegion returned empty.\nEnable "View screen" permission.');
-        return;
-      }
-      const raw = atob(b64);
-
-      // Scan for golden anchor row: a horizontal run ≥400px of the
-      // warm brown/gold top-frame color. getRegion bytes are BGRA:
-      // byte0=B, byte1=G, byte2=R, byte3=A.
-      function isGolden(x, y) {
-        const i = (y * rsW + x) * 4;
-        return Math.abs(raw.charCodeAt(i+2) - 77) <= 14  // R
-            && Math.abs(raw.charCodeAt(i+1) - 61) <= 14  // G
-            && Math.abs(raw.charCodeAt(i+0) - 38) <= 12; // B
-      }
-
-      let anchorY = -1, anchorX = -1, anchorW = 0;
-      for (let y = 0; y < cropH && anchorY === -1; y++) {
-        let runStart = -1, runLen = 0;
-        for (let x = 0; x < rsW; x++) {
-          if (isGolden(x, y)) {
-            if (runStart === -1) runStart = x;
-            runLen++;
-          } else {
-            // Require run starts at x>50 (not a full-width UI bar at left edge)
-            if (runLen >= 400 && runStart > 50) { anchorY = y; anchorX = runStart; anchorW = runLen; break; }
-            runStart = -1; runLen = 0;
-          }
-        }
-        if (runLen >= 400 && runStart > 50 && anchorY === -1) { anchorY = y; anchorX = runStart; anchorW = runLen; }
-      }
-
-      console.log('[StarScout] golden anchor: y=' + anchorY + ' x=' + anchorX + ' w=' + anchorW);
-
-      if (anchorY === -1) {
-        diagFail('Dialog frame not found.\nMake sure the telescope dialog is fully visible, then scan.');
-        return;
-      }
-
-      // The golden anchor finds the warm-brown horizontal strip.
-      // Log the anchor details so we can verify the offset is correct.
-      const dialogX = anchorX + 1;
-      // anchor row is the golden strip; parchment text starts ~64px below it.
-      // dialogY + 33 must equal cropY + anchorY + 64, so dialogY = cropY + anchorY + 31.
-      const dialogY = cropY + anchorY + 31;
-      const DIALOG_W = 506;
-      const textY    = dialogY + 33;
-
-      console.log('[StarScout] anchor: cropY=' + cropY + ' anchorY=' + anchorY + ' anchorX=' + anchorX);
-      console.log('[StarScout] dialog: x=' + dialogX + ' y=' + dialogY);
-      console.log('[StarScout] text strip: y=' + textY + ' (dialogY+33)');
-
-      // Sample 5 pixels from the text strip to confirm it's parchment
-      const diagSample = alt1.getRegion(dialogX + 250, textY + 10, 5, 1);
-      if (diagSample) {
-        const d = atob(diagSample);
-        const sR = d.charCodeAt(2), sG = d.charCodeAt(1), sB = d.charCodeAt(0);
-        console.log('[StarScout] text strip sample px (should be parchment ~200,185,155): R=' + sR + ' G=' + sG + ' B=' + sB);
-      }
-      scanText.textContent = 'Dialog found — reading text…';
-
-      // Use Alt1's native bindReadString — handles any font/scale automatically.
-      // First detect band positions from raw pixel data, then read each line.
-      const b64txt = alt1.getRegion(dialogX, textY, DIALOG_W, 85);
-      if (!b64txt) { diagFail('Failed to capture text region.'); return; }
-      const rawTxt = atob(b64txt);
-
-      // Find text rows (dark pixels, sum<120, scanning x=50..450)
-      function isDark(x, y) {
-        if (x < 0 || x >= DIALOG_W || y < 0 || y >= 85) return false;
-        const i = (y * DIALOG_W + x) * 4;
-        return (rawTxt.charCodeAt(i+2) + rawTxt.charCodeAt(i+1) + rawTxt.charCodeAt(i+0)) < 120;
-      }
-      const textRows = [];
-      for (let y = 0; y < 85; y++) {
-        for (let x = 50; x < 450; x++) {
-          if (isDark(x, y)) { textRows.push(y); break; }
-        }
-      }
-      // Group into bands
-      const bands = [];
-      if (textRows.length > 0) {
-        let bs = textRows[0], bl = textRows[0];
-        for (let i = 1; i < textRows.length; i++) {
-          if (textRows[i] - bl > 4) { bands.push({y1:bs, y2:bl}); bs = textRows[i]; }
-          bl = textRows[i];
-        }
-        bands.push({y1:bs, y2:bl});
-      }
-      console.log('[StarScout] bands:', JSON.stringify(bands));
-
-      // Bind and read each band with Alt1's native OCR
-      const imgId = alt1.bindRegion(dialogX, textY, DIALOG_W, 85);
-      if (!imgId) { diagFail('Failed to bind text region.'); return; }
-
-      const readLines = [];
-      for (const band of bands) {
-        if (band.y2 - band.y1 < 2) continue; // skip single-pixel noise bands
-        const ly = band.y2; // baseline = bottom of band
-        for (const font of ['chat', 'chatmono']) {
-          let line = '';
-          try { line = alt1.bindReadString(imgId, font, 0, ly) || ''; } catch(e) {}
-          if (line && line.trim().length > 2) {
-            console.log('[StarScout] read y=' + ly + ' font=' + font + ':', JSON.stringify(line));
-            readLines.push(line.trim());
-            break;
-          }
-        }
-      }
-      const ocrText = readLines.length > 0 ? readLines.join(' ') : null;
-      console.log('[StarScout] OCR result:', JSON.stringify(ocrText));
-
-      if (!ocrText) {
-        scanBtn.disabled = false;
-        scanArea.className = 'scan-area error';
-        scanText.innerHTML = '<strong>Dialog found but no text detected.</strong><br>Please fill in fields manually below.';
-        setStatus('Dialog found — OCR empty, try manual entry', 'err');
-        return;
-      }
-
-      const lower = ocrText.toLowerCase();
-      if (!lower.includes('shooting star') && !lower.includes('size') &&
-          !lower.includes('land in') && !lower.includes('minutes')) {
-        diagFail('OCR read text but not a star dialog.\nRead: "' + ocrText.substring(0,120) + '"\nMake sure the telescope dialog is open.');
-        return;
-      }
-
-      attemptParse(ocrText);
-
-    } catch(err) {
-      console.error('[StarScout] scan error:', err);
-      diagFail('Scan error: ' + (err.message || String(err)));
-    }
-  }, 50);
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  SIMULATION  (outside Alt1)
-// ═══════════════════════════════════════════════════════════════════════
-function simulateScan() {
-  scanArea.className = 'scan-area scanning';
-  scanText.textContent = 'Scanning…';
-  scanBtn.disabled = true;
-  setStatus('Simulating scan (no Alt1 detected)…');
-  setTimeout(() => {
-    const samples = [
-      'You see a shooting star! The star looks like it will land in Asgarnia in the next 37 to 39 minutes. The star looks to be size 7.',
-      'You see a shooting star! The star looks like it will land in Kandarin in the next 4 to 6 minutes. The star looks to be size 9.',
-      'You see a shooting star! The star looks like it will land in Crandor/Karamja in the next 12 to 14 minutes. The star looks to be size 5.',
-      'You see a shooting star! The star looks like it will land in Wilderness in the next 2 to 4 minutes. The star looks to be size 10.',
-    ];
-    attemptParse(samples[Math.floor(Math.random() * samples.length)]);
-    scanBtn.disabled = false;
-  }, 1200);
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  SHARED HELPERS
-// ═══════════════════════════════════════════════════════════════════════
-function attemptParse(text) {
-  scanBtn.disabled = false;
-  const parsed = parseTelescopeText(text);
-  if (parsed.region || parsed.size || parsed.time) {
-    if (parsed.region) regionSelect.value = parsed.region;
-    if (parsed.size)   sizeInput.value    = parsed.size;
-    if (parsed.time)   timeInput.value    = parsed.time;
-    scanArea.className = 'scan-area success';
-    const parts = [];
-    if (parsed.region) parts.push('Region: ' + parsed.region);
-    if (parsed.size)   parts.push('Size: ' + parsed.size);
-    if (parsed.time)   parts.push('Time: ' + parsed.time + ' min');
-    scanText.textContent = '✓ ' + parts.join(' · ');
-    setStatus('Dialog parsed successfully', 'ok');
-    renderOutput();
-  } else {
-    scanArea.className = 'scan-area error';
-    const preview = text ? text.substring(0,120).replace(/\s+/g,' ') : '(empty)';
-    scanText.textContent = 'No star data matched.\nRead: "' + preview + '"';
-    setStatus('No data matched — check dialog is open', 'err');
+// ════════════════════════════════════════════════════════
+//  PIXEL OCR (custom font matching — fallback when bindReadString unavailable)
+// ════════════════════════════════════════════════════════
+function readDialogTextPixel(raw, imgW, imgH) {
+  function isTextPixel(x,y) {
+    if (x<0||x>=imgW||y<0||y>=imgH) return false;
+    const i=(y*imgW+x)*4;
+    const r=raw.charCodeAt(i+2),g=raw.charCodeAt(i+1),b=raw.charCodeAt(i);
+    return (r+g+b)<80;
   }
+  const textRows=[];
+  for (let y=0;y<imgH;y++)
+    for (let x=50;x<Math.min(450,imgW);x++)
+      if (isTextPixel(x,y)){textRows.push(y);break;}
+  if (!textRows.length) return null;
+  const bands=[];
+  let bs=textRows[0],last=textRows[0];
+  for (let i=1;i<textRows.length;i++){
+    if (textRows[i]-last>4){bands.push({y1:bs,y2:last});bs=textRows[i];}
+    last=textRows[i];
+  }
+  bands.push({y1:bs,y2:last});
+  const lines=[],font=FONT_12PT;
+  for (const band of bands) {
+    const charTop=band.y2-font.basey;
+    let x=0;
+    for (x=0;x<imgW;x++){
+      let h=false;
+      for (let dy=0;dy<font.height;dy++) if(isTextPixel(x,charTop+dy)){h=true;break;}
+      if(h) break;
+    }
+    let lineText='',safety=0;
+    while (x<imgW&&safety++<80) {
+      let col=false;
+      for (let dy=0;dy<font.height;dy++) if(isTextPixel(x,charTop+dy)){col=true;break;}
+      if(!col){
+        let gl=0;
+        for (let gx=x;gx<Math.min(x+20,imgW);gx++){
+          let gh=false;
+          for (let dy=0;dy<font.height;dy++) if(isTextPixel(gx,charTop+dy)){gh=true;break;}
+          if(!gh) gl++; else break;
+        }
+        if(gl>=font.spacewidth+1) lineText+=' ';
+        x+=Math.max(1,gl);
+        if(gl>20) break;
+        continue;
+      }
+      let best=null,bestScore=Infinity;
+      for (const cd of font.chars) {
+        if(!cd.p.length) continue;
+        let matched=0,missed=0;
+        for (const[px,py] of cd.p){
+          if(isTextPixel(x+px,charTop+py)) matched++; else missed++;
+        }
+        const score=missed*2-matched+(cd.s?20:0);
+        if(score<bestScore){bestScore=score;best=cd;}
+      }
+      const total=best?best.p.length:1;
+      if(best&&bestScore<total*1.5){lineText+=best.c;x+=best.w+1;}
+      else x++;
+    }
+    const tr=lineText.trim();
+    if(tr.length>=2) lines.push(tr);
+  }
+  return lines.length?lines.join(' '):null;
 }
 
-function diagFail(msg) {
-  scanBtn.disabled = false;
-  scanArea.className = 'scan-area error';
-  scanText.textContent = msg;
-  setStatus(msg.split('\n')[0], 'err');
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  UI WIRING
-// ═══════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  SCOUT UI STATE
+// ════════════════════════════════════════════════════════
 const worldInput    = document.getElementById('worldInput');
 const worldWrap     = document.getElementById('worldWrap');
 const worldDetect   = document.getElementById('worldDetect');
@@ -662,86 +736,464 @@ const sizeInput     = document.getElementById('sizeInput');
 const timeInput     = document.getElementById('timeInput');
 const outputBox     = document.getElementById('outputBox');
 const copyBtn       = document.getElementById('copyBtn');
+const addToListBtn  = document.getElementById('addToListBtn');
 const clearBtn      = document.getElementById('clearBtn');
 const statusDot     = document.getElementById('statusDot');
 const statusText    = document.getElementById('statusText');
 const copyFlash     = document.getElementById('copyFlash');
 
-function setStatus(msg, type) {
+function setStatus(msg, type='idle') {
   statusText.textContent = msg;
-  statusDot.className = 'status-indicator' + (type==='ok' ? ' ok' : type==='err' ? ' err' : '');
+  statusDot.className = 'status-indicator'+(type==='ok'?' ok':type==='err'?' err':'');
 }
+
 function buildCallString() {
-  const world = worldInput.value.trim(), region = regionSelect.value;
-  const size  = sizeInput.value.trim(),  time   = timeInput.value.trim();
-  if (!world && !region && !size && !time) return null;
-  const parts = ['/call'];
-  if (world)  parts.push('world: ' + world);
-  if (region) parts.push('region: ' + region);
-  if (size)   parts.push('size: ' + size);
-  if (time)   parts.push('relative-time: ' + time);
+  const world  = worldInput.value.trim();
+  const region = regionSelect.value;
+  const size   = sizeInput.value.trim();
+  const time   = timeInput.value.trim();
+  if (!world&&!region&&!size&&!time) return null;
+  const parts=['/call'];
+  if (world)  parts.push(`world: ${world}`);
+  if (region) parts.push(`region: ${region}`);
+  if (size)   parts.push(`size: ${size}`);
+  if (time)   parts.push(`relative-time: ${time}`);
   return parts.join(' ');
 }
+
 function renderOutput() {
   const str = buildCallString();
-  if (!str) { outputBox.className = 'output-box empty'; outputBox.textContent = 'Fill in the fields above to generate your call…'; return; }
+  if (!str) {
+    outputBox.className = 'output-box empty';
+    outputBox.textContent = 'Fill in the fields above to generate your call…';
+    return;
+  }
   outputBox.className = 'output-box';
   outputBox.innerHTML = str.split(' ').map(t => {
-    if (t.startsWith('/')) return '<span style="color:var(--star-blue);font-weight:700">' + t + '</span>';
-    if (t.endsWith(':'))   return '<span class="tag">' + t + '</span>';
-    return '<span>' + t + '</span>';
+    if (t.startsWith('/')) return `<span style="color:var(--star-blue);font-weight:700">${t}</span>`;
+    if (t.endsWith(':'))   return `<span class="tag">${t}</span>`;
+    return `<span>${t}</span>`;
   }).join(' ');
 }
+
+// ════════════════════════════════════════════════════════
+//  WORLD DETECTION
+// ════════════════════════════════════════════════════════
 function detectWorld() {
   try {
-    if (typeof alt1 !== 'undefined') {
-      const w = alt1.currentWorld;
-      if (w && w > 0) {
-        worldInput.value = w; worldWrap.classList.add('has-value');
-        worldDetect.classList.remove('no-detect'); worldDetectLbl.textContent = 'detected';
-        setStatus('World ' + w + ' detected from game', 'ok'); renderOutput(); return;
-      }
+    const w = (typeof alt1!=='undefined'&&alt1.currentWorld) ? alt1.currentWorld
+            : (window.alt1&&window.alt1.currentWorld) ? window.alt1.currentWorld : 0;
+    if (w>0) {
+      worldInput.value=w;
+      worldWrap.classList.add('has-value');
+      worldDetect.classList.remove('no-detect');
+      worldDetectLbl.textContent='detected';
+      setStatus(`World ${w} detected`,'ok');
+      renderOutput();
+      return;
     }
-  } catch(e) {}
-  setStatus('World not detected — enter manually', 'err');
+  } catch(e){}
+  setStatus('World not detected — enter manually','err');
 }
 
-worldInput.addEventListener('input', () => {
-  worldWrap.classList.toggle('has-value', worldInput.value.length > 0);
-  if (worldInput.value) { worldDetect.classList.add('no-detect'); worldDetectLbl.textContent = 'manual'; }
-  renderOutput();
-});
-detectWorldBtn.addEventListener('click', detectWorld);
-scanBtn.addEventListener('click', scanScreen);
-scanArea.addEventListener('click', scanScreen);
-regionSelect.addEventListener('change', renderOutput);
-sizeInput.addEventListener('input', renderOutput);
-timeInput.addEventListener('input', renderOutput);
+// ════════════════════════════════════════════════════════
+//  SCAN — mirrors starfind-scope: DialogReader → Tesseract
+//  Since we can't import the alt1 npm package here, we fall
+//  back to the proven pixel-based anchor approach from the
+//  existing Star Scout implementation.
+// ════════════════════════════════════════════════════════
+function scanScreen() {
+  if (typeof alt1==='undefined') { simulateScan(); return; }
+  scanArea.className='scan-area scanning';
+  scanText.textContent='Locating telescope dialog…';
+  setStatus('Capturing…');
+  scanBtn.disabled=true;
 
-copyBtn.addEventListener('click', () => {
-  const str = buildCallString();
-  if (!str) { setStatus('Nothing to copy yet!', 'err'); return; }
-  navigator.clipboard.writeText(str).then(() => {
-    copyFlash.classList.add('show'); setTimeout(() => copyFlash.classList.remove('show'), 2000);
-    setStatus('Copied: ' + str, 'ok');
-  }).catch(() => {
-    const ta = document.createElement('textarea'); ta.value = str;
-    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-    copyFlash.classList.add('show'); setTimeout(() => copyFlash.classList.remove('show'), 2000);
-    setStatus('Copied: ' + str, 'ok');
+  setTimeout(()=>{
+    try {
+      const rsW=alt1.rsWidth, rsH=alt1.rsHeight;
+      if (!alt1.rsLinked||rsW<=0||rsH<=0) { diagFail('RuneScape window not detected.'); return; }
+      if (!alt1.permissionPixel) { diagFail('Missing pixel permission — enable "View screen" in app settings.'); return; }
+
+      // First attempt: use bindReadString (like starfind-scope's DialogReader)
+      // Capture bottom 35% of RS window where dialog appears
+      const cropY=Math.floor(rsH*0.55), cropH=rsH-cropY;
+
+      // Use bindRegion for DialogReader-style reading
+      const imgId = alt1.bindRegion(0, cropY, rsW, cropH);
+
+      let dialogText = null;
+
+      if (imgId) {
+        // Try bindReadString on multiple rows (chat font, like starfind-scope uses)
+        const tryRows = [40,50,60,70,80,90,100,110,120,130,140,150];
+        const lines = [];
+        for (const y of tryRows) {
+          if (y >= cropH) break;
+          try {
+            const line = alt1.bindReadString(imgId,'chat',0,y)||'';
+            if (line.trim().length>2) {
+              console.log(`[StarScout] bindReadString y=${y}: ${JSON.stringify(line)}`);
+              lines.push(line.trim());
+            }
+          } catch(e){}
+        }
+        if (lines.length>0) {
+          dialogText = lines.join(' ');
+          console.log('[StarScout] bindReadString result:', dialogText);
+        }
+      }
+
+      // Fallback: pixel-based golden anchor + custom font OCR
+      if (!dialogText) {
+        const b64 = alt1.getRegion(0,cropY,rsW,cropH);
+        if (!b64||!b64.length) { diagFail('getRegion empty — enable "View screen" permission.'); return; }
+        const raw = atob(b64);
+
+        // Find golden dialog anchor row
+        function isGolden(x,y){
+          const i=(y*rsW+x)*4;
+          return Math.abs(raw.charCodeAt(i+2)-77)<=12
+              && Math.abs(raw.charCodeAt(i+1)-61)<=12
+              && Math.abs(raw.charCodeAt(i+0)-38)<=10;
+        }
+        let aY=-1,aX=-1,aW=0;
+        for (let y=0;y<cropH&&aY===-1;y++){
+          let rs=-1,rl=0;
+          for (let x=0;x<rsW;x++){
+            if(isGolden(x,y)){if(rs===-1)rs=x;rl++;}
+            else{if(rl>=400){aY=y;aX=rs;aW=rl;break;}rs=-1;rl=0;}
+          }
+          if(rl>=400&&aY===-1){aY=y;aX=rs;aW=rl;}
+        }
+        if (aY===-1) { diagFail('Telescope dialog not found on screen.\nOpen the dialog then click Scan.'); return; }
+
+        const dialogX=aX+1, dialogY=cropY+(aY-30)+1;
+        const DIALOG_W=506, TEXT_OFFSET=33, TEXT_H=80;
+        const b64txt=alt1.getRegion(dialogX,dialogY+TEXT_OFFSET,DIALOG_W,TEXT_H);
+        if (!b64txt) { diagFail('Failed to capture text region.'); return; }
+        dialogText=readDialogTextPixel(atob(b64txt),DIALOG_W,TEXT_H);
+      }
+
+      console.log('[StarScout] Final OCR text:', dialogText);
+
+      if (!dialogText) {
+        diagFail('Dialog found but no text detected.\nPlease fill in fields manually.');
+        return;
+      }
+
+      const lower=dialogText.toLowerCase();
+      const isStarDlg=lower.includes('shooting star')||lower.includes('size')
+                    ||lower.includes('land in')||lower.includes('minutes');
+      if (!isStarDlg) {
+        diagFail(`OCR read text but not a star dialog.\nRead: "${dialogText.substring(0,100)}"`);
+        return;
+      }
+
+      attemptParse(dialogText);
+    } catch(err) {
+      console.error('[StarScout] scanScreen error:',err);
+      diagFail('Scan error: '+(err.message||String(err)));
+    }
+  },50);
+}
+
+function diagFail(msg) {
+  scanBtn.disabled=false;
+  scanArea.className='scan-area error';
+  scanText.textContent=msg;
+  setStatus(msg.split('\n')[0],'err');
+}
+
+function attemptParse(text) {
+  scanBtn.disabled=false;
+  const parsed=parseTelescopeText(text);
+  const found=parsed.region||parsed.size||parsed.time;
+  if (found) {
+    if (parsed.region) regionSelect.value=parsed.region;
+    if (parsed.size)   sizeInput.value=parsed.size;
+    if (parsed.time)   timeInput.value=parsed.time;
+    scanArea.className='scan-area success';
+    const parts=[];
+    if (parsed.region) parts.push(`Region: ${parsed.region}`);
+    if (parsed.size)   parts.push(`Size: ${parsed.size}`);
+    if (parsed.time)   parts.push(`${parsed.time} min`);
+    scanText.textContent='✓ '+parts.join(' · ');
+    setStatus('Dialog parsed successfully','ok');
+    renderOutput();
+  } else {
+    diagFail(`Dialog found but no star data matched.\nRead: "${text.substring(0,100)}"`);
+  }
+}
+
+// ── Dev simulation ──
+function simulateScan() {
+  scanArea.className='scan-area scanning';
+  scanText.textContent='Scanning…';
+  scanBtn.disabled=true;
+  setStatus('Simulating scan (no Alt1)…');
+  const samples=[
+    'You see a shooting star! The star looks like it will land in Asgarnia in the next 37 to 39 minutes. The star looks to be size 7.',
+    'You see a shooting star! The star looks like it will land in Kandarin in the next 4 to 6 minutes. The star looks to be size 9.',
+    'You see a shooting star! The star looks like it will land in Crandor/Karamja in the next 12 to 14 minutes. The star looks to be size 5.',
+    'You see a shooting star! The star looks like it will land in Wilderness in the next 2 to 4 minutes. The star looks to be size 10.',
+    'You see a shooting star! The star looks like it will land in Misthalin in the next 18 to 20 minutes. The star looks to be size 3.',
+  ];
+  setTimeout(()=>{
+    attemptParse(samples[Math.floor(Math.random()*samples.length)]);
+    scanBtn.disabled=false;
+  },1200);
+}
+
+// ════════════════════════════════════════════════════════
+//  STAR LIST — local session store
+// ════════════════════════════════════════════════════════
+
+// Each entry: { id, region, world, size, time, addedAt, minutesOut }
+// minutesOut: relative minutes at time of submission
+// addedAt: Date.now() when submitted
+// We compute eta = addedAt + minutesOut*60000, then show time remaining
+
+let starEntries = [];
+let listUpdateInterval = null;
+
+function getEtaMs(entry) {
+  return entry.addedAt + entry.minutesOut * 60 * 1000;
+}
+
+function msToDisplay(ms) {
+  if (ms <= 0) return { label: 'Landed', cls: 'expired' };
+  const min = Math.floor(ms / 60000);
+  const sec = Math.floor((ms % 60000) / 1000);
+  if (min <= 0 && sec < 60) return { label: `${sec}s`, cls: 'arriving' };
+  if (min < 5)  return { label: `${min}m ${sec}s`, cls: 'arriving' };
+  if (min < 15) return { label: `${min}m`, cls: 'soon' };
+  return { label: `${min}m`, cls: 'later' };
+}
+
+function sizeTier(size) {
+  if (size >= 7) return 'high';
+  if (size >= 4) return 'med';
+  return 'low';
+}
+
+function renderStarList() {
+  const listEl = document.getElementById('starList');
+  const search = document.getElementById('starSearch').value.toLowerCase().trim();
+  const sizeF  = document.getElementById('sizeFilter').value;
+  const now    = Date.now();
+
+  let entries = starEntries.filter(e => {
+    const eta = getEtaMs(e);
+    // keep if not yet expired + 5min grace
+    if (eta < now - 5*60*1000) return false;
+    if (search) {
+      const worldStr = e.world ? String(e.world) : '';
+      const regionFull = (ABBREV_FULL[e.region]||e.region).toLowerCase();
+      if (!regionFull.includes(search) && !e.region.toLowerCase().includes(search) && !worldStr.includes(search)) return false;
+    }
+    if (sizeF==='high' && e.size < 7) return false;
+    if (sizeF==='med'  && (e.size<4||e.size>6)) return false;
+    if (sizeF==='low'  && e.size > 3) return false;
+    return true;
+  });
+
+  // Sort: not-yet-landed first (by remaining time asc), then expired
+  entries.sort((a,b) => {
+    const ra = getEtaMs(a) - now, rb = getEtaMs(b) - now;
+    if (ra>0 && rb<=0) return -1;
+    if (ra<=0 && rb>0) return 1;
+    if (ra>0 && rb>0) return ra-rb;
+    return rb-ra;
+  });
+
+  if (!entries.length) {
+    listEl.innerHTML = `<div class="star-empty">
+      <div class="big-star">★</div>
+      <span>${starEntries.length ? 'No stars match your filter.' : 'No stars reported yet.\nScan a telescope dialog and click "Add to List".'}</span>
+    </div>`;
+    document.getElementById('lastUpdated').textContent = '—';
+    return;
+  }
+
+  listEl.innerHTML = entries.map(e => {
+    const remaining = getEtaMs(e) - now;
+    const { label, cls } = msToDisplay(remaining);
+    const tier = remaining > 0 ? sizeTier(e.size) : 'done';
+    const size = e.size || '?';
+    const sizeClass = size >= 7 ? 'big' : size <= 3 ? 'small' : '';
+    const pips = Array.from({length:10},(_,i)=>
+      `<div class="size-pip${i<size?' filled'+(size>=7?' high':''):''}"></div>`
+    ).join('');
+    const worldStr = e.world ? `W${e.world}` : '?';
+    return `
+    <div class="star-card tier-${tier}" onclick="copyStarCall('${e.id}')">
+      <div class="star-card-top">
+        <div class="star-region">${e.region} <span style="font-size:10px;color:var(--text-dim)">${ABBREV_FULL[e.region]||''}</span></div>
+        <div class="star-size-badge ${sizeClass}">Size ${size}</div>
+      </div>
+      <div class="star-card-bottom">
+        <div class="star-world-badge">World <span>${worldStr}</span></div>
+        <div class="star-size-bar">${pips}</div>
+        <div class="star-time">
+          <span class="star-time-label">${remaining>0?'~':'Past: '}</span>
+          <span class="star-time-val ${cls}">${label}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const newest = Math.max(...starEntries.map(e=>e.addedAt));
+  document.getElementById('lastUpdated').textContent =
+    'Updated '+new Date(newest).toLocaleTimeString();
+}
+
+function copyStarCall(id) {
+  const e = starEntries.find(s=>s.id===id);
+  if (!e) return;
+  const remaining = Math.max(0, Math.round((getEtaMs(e)-Date.now())/60000));
+  const str = `/call world: ${e.world||'?'} region: ${e.region} size: ${e.size} relative-time: ${remaining}`;
+  navigator.clipboard.writeText(str).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=str;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+  });
+  showFlash(`Copied: ${str}`);
+}
+
+function showFlash(msg) {
+  copyFlash.textContent = msg || '✓ Copied to clipboard!';
+  copyFlash.classList.add('show');
+  setTimeout(()=>copyFlash.classList.remove('show'),2200);
+}
+
+function addStarEntry(region, world, size, time) {
+  if (!region||!size||time===''||time===null||time===undefined) return false;
+  const id = Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  starEntries.unshift({
+    id,
+    region,
+    world: world||null,
+    size: parseInt(size),
+    minutesOut: parseInt(time),
+    addedAt: Date.now(),
+  });
+  renderStarList();
+  return true;
+}
+
+// ════════════════════════════════════════════════════════
+//  EVENT LISTENERS
+// ════════════════════════════════════════════════════════
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-'+tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab==='stars') renderStarList();
   });
 });
-clearBtn.addEventListener('click', () => {
-  worldInput.value = ''; worldWrap.classList.remove('has-value');
-  regionSelect.value = ''; sizeInput.value = ''; timeInput.value = '';
-  scanArea.className = 'scan-area';
-  scanText.textContent = 'Use your telescope in-game, then click Scan — or fill in fields below manually.';
-  worldDetect.classList.add('no-detect'); worldDetectLbl.textContent = 'manual';
-  setStatus('Cleared'); renderOutput();
+
+// Scout
+worldInput.addEventListener('input',()=>{
+  worldWrap.classList.toggle('has-value',worldInput.value.length>0);
+  if (worldInput.value){worldDetect.classList.add('no-detect');worldDetectLbl.textContent='manual';}
+  renderOutput();
+});
+detectWorldBtn.addEventListener('click',detectWorld);
+scanBtn.addEventListener('click',scanScreen);
+scanArea.addEventListener('click',scanScreen);
+regionSelect.addEventListener('change',renderOutput);
+sizeInput.addEventListener('input',renderOutput);
+timeInput.addEventListener('input',renderOutput);
+
+copyBtn.addEventListener('click',()=>{
+  const str=buildCallString();
+  if (!str){setStatus('Nothing to copy yet!','err');return;}
+  navigator.clipboard.writeText(str).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=str;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+  });
+  showFlash('✓ Copied: '+str);
+  setStatus('Copied: '+str,'ok');
 });
 
+addToListBtn.addEventListener('click',()=>{
+  const region=regionSelect.value, size=sizeInput.value, time=timeInput.value;
+  if (!region||!size||time===''){setStatus('Fill Region, Size, and Time to add to list','err');return;}
+  const world=worldInput.value||null;
+  if (addStarEntry(region,world,size,time)){
+    setStatus('★ Added to star list','ok');
+    showFlash('★ Added to star list!');
+    // switch to list tab
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    document.querySelector('[data-tab="stars"]').classList.add('active');
+    document.getElementById('panel-stars').classList.add('active');
+    renderStarList();
+  }
+});
+
+clearBtn.addEventListener('click',()=>{
+  worldInput.value='';worldWrap.classList.remove('has-value');
+  regionSelect.value='';sizeInput.value='';timeInput.value='';
+  scanArea.className='scan-area';
+  scanText.textContent='Use your telescope in-game, then click Scan — or fill in fields below manually.';
+  worldDetect.classList.add('no-detect');worldDetectLbl.textContent='manual';
+  setStatus('Cleared');renderOutput();
+});
+
+// Stars tab
+document.getElementById('starSearch').addEventListener('input',renderStarList);
+document.getElementById('sizeFilter').addEventListener('change',renderStarList);
+document.getElementById('refreshBtn').addEventListener('click',renderStarList);
+
+document.getElementById('clearExpiredBtn').addEventListener('click',()=>{
+  const now=Date.now();
+  starEntries=starEntries.filter(e=>getEtaMs(e)>now-5*60*1000);
+  renderStarList();
+});
+
+// Add star form toggle
+document.getElementById('addToggle').addEventListener('click',()=>{
+  const form=document.getElementById('addStarForm');
+  const toggle=document.getElementById('addToggle');
+  const open=form.classList.toggle('open');
+  toggle.classList.toggle('open',open);
+});
+
+document.getElementById('submitAddBtn').addEventListener('click',()=>{
+  const region=document.getElementById('addRegion').value;
+  const world =document.getElementById('addWorld').value;
+  const size  =document.getElementById('addSize').value;
+  const time  =document.getElementById('addTime').value;
+  if (!region||!size||time===''){
+    document.getElementById('listStatusText').textContent='Fill Region, Size, and Time';
+    document.getElementById('listStatusDot').className='status-indicator err';
+    return;
+  }
+  addStarEntry(region,world,size,time);
+  document.getElementById('addRegion').value='';
+  document.getElementById('addWorld').value='';
+  document.getElementById('addSize').value='';
+  document.getElementById('addTime').value='';
+  document.getElementById('listStatusText').textContent='★ Sighting added!';
+  document.getElementById('listStatusDot').className='status-indicator ok';
+  showFlash('★ Added!');
+});
+
+// Live countdown tick
+setInterval(()=>{
+  if (document.getElementById('panel-stars').classList.contains('active'))
+    renderStarList();
+}, 10000);
+
+// ── Init ──
 detectWorld();
 setStatus('Ready — use telescope then scan, or enter manually');
+renderStarList();
 </script>
 </body>
 </html>
