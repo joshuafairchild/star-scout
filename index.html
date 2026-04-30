@@ -411,11 +411,12 @@ function scanScreen() {
             if (runStart === -1) runStart = x;
             runLen++;
           } else {
-            if (runLen >= 400) { anchorY = y; anchorX = runStart; anchorW = runLen; break; }
+            // Require run starts at x>50 (not a full-width UI bar at left edge)
+            if (runLen >= 400 && runStart > 50) { anchorY = y; anchorX = runStart; anchorW = runLen; break; }
             runStart = -1; runLen = 0;
           }
         }
-        if (runLen >= 400 && anchorY === -1) { anchorY = y; anchorX = runStart; anchorW = runLen; }
+        if (runLen >= 400 && runStart > 50 && anchorY === -1) { anchorY = y; anchorX = runStart; anchorW = runLen; }
       }
 
       console.log('[StarScout] golden anchor: y=' + anchorY + ' x=' + anchorX + ' w=' + anchorW);
